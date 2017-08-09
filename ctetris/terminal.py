@@ -1,11 +1,11 @@
 import abc
 import copy
 import enum
-import traceback
 import random
 import os
-from typing import List, Dict, Tuple
-from termbox import *
+from typing import List, Tuple
+from termbox import DEFAULT, BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, \
+        WHITE
 from .logger import create_logger
 
 
@@ -52,6 +52,7 @@ class Color(enum.IntEnum):
 
 class Shape(enum.Enum):
     """
+    Shape enum.
     """
     Square = ord(' ')
     Bullet = ord('•')
@@ -60,31 +61,26 @@ class Shape(enum.Enum):
 
 
 class Vector2:
-    def __init__(self, x=None, y=None):
-        self.x = x
-        self.y = y
+    """
+    Vector 2D class.
+    """
+    def __init__(self, x: int=None, y: int=None):
+        self.x: int = x
+        self.y: int = y
 
-    def __add__(self, other):
-        return Vector2(
-            self.x+other.x,
-            self.y+other.y
-        )
+    def __add__(self, other) -> 'Vector2':
+        return Vector2(self.x+other.x, self.y+other.y)
 
-    def __sub__(self, other):
-        return Vector2(
-            self.x-other.x,
-            self.y-other.y
-        )
+    def __sub__(self, other) -> 'Vector2':
+        return Vector2(self.x-other.x, self.y-other.y)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '<Vector2(x={},y={})>'.format(
-            self.x, self.y
-        )
+            self.x, self.y)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return '(x={},y={})'.format(
-            self.x, self.y
-        )
+            self.x, self.y)
 
 
 class Dir(enum.Enum):
@@ -98,75 +94,70 @@ class Rect:
     """
     Rectangle.
     """
-    def __init__(self, x1=0, y1=0, x2=0, y2=0):
-        self.x1 = x1
-        self.y1 = y1
-        self.x2 = x2
-        self.y2 = y2
+    def __init__(self, x1: int=0, y1: int=0, x2: int=0, y2: int=0):
+        self.x1: int = x1
+        self.y1: int = y1
+        self.x2: int = x2
+        self.y2: int = y2
 
     @property
-    def lb(self):
+    def lb(self) -> Vector2:
         """
         Left bottom
         """
         return Vector2(self.x1, self.y1)
 
     @property
-    def lt(self):
+    def lt(self) -> Vector2:
         """
         Left top
         """
         return Vector2(self.x1, self.y2)
 
     @property
-    def rb(self):
+    def rb(self) -> Vector2:
         """
         Right bottom
         """
         return Vector2(self.x2, self.y1)
 
     @property
-    def rt(self):
+    def rt(self) -> Vector2:
         """
         Right top
         """
         return Vector2(self.x2, self.y2)
 
-    def get_pos(self):
+    def get_pos(self) -> Vector2:
         return self.get_center()
 
-    def get_center(self):
-        return Vector2(
-            self.x1 + (self.x2 - self.x1),
-            self.y1 + (self.y2 - self.y1)
-        )
+    def get_center(self) -> Vector2:
+        return Vector2(self.x1 + (self.x2 - self.x1),
+                       self.y1 + (self.y2 - self.y1))
 
-    def get_width(self):
+    def get_width(self) -> int:
         return abs(self.x2 - self.x1) + 1
 
-    def get_height(self):
+    def get_height(self) -> int:
         return abs(self.y2 - self.y1) + 1
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '[Rect] lb={},lt={},rt={},rb={},w={},h={}'.format(
-            str(self.lb),
-            str(self.lt),
-            str(self.rt),
-            str(self.rb),
-            self.get_width(),
-            self.get_height())
+            str(self.lb), str(self.lt), str(self.rt),
+            str(self.rb), self.get_width(), self.get_height())
 
 
 class Cell:
     """
     Cell object.
     """
-    def __init__(self, x: int=None, y: int=None, fg: Color=None, bg: Color=None, c: Shape=None):
-        self.c = c or Shape.Default.value
-        self.x = x
-        self.y = y
-        self.fg = fg or Color.Default
-        self.bg = bg or Color.Default
+    def __init__(self, x: int=None, y: int=None, fg: Color=None,
+                 bg: Color=None, c: Shape=None):
+        self.c: Shape = c or Shape.Default.value
+        self.x: int = x
+        self.y: int = y
+        self.fg: Color = fg or Color.Default
+        self.bg: Color = bg or Color.Default
 
 
 class Size(enum.IntEnum):
@@ -183,7 +174,6 @@ class Size(enum.IntEnum):
     w19xh19 = 19
     MinSize = w1xh1
     MaxSize = w19xh19
-
 
 
 class StatusCode(enum.IntEnum):
@@ -228,12 +218,12 @@ class Renderable:
     __metaclass__ = abc.ABCMeta
 
     def __init__(self):
-        self.pos = None  # type: Vector2
-        self.prev_pos = None  # type: Vector2
-        self.fg = None  # type: Color
-        self.bg = None  # type: Color
-        self.prev_direction = None  # type: Dir
-        self.direction = None  # type: Dir
+        self.pos: Vector2 = None
+        self.prev_pos: Vector2 = None
+        self.fg: Color = None
+        self.bg: Color = None
+        self.prev_direction: Dir = None
+        self.direction: Dir = None
 
     def render(self, tm: Terminal=None, dx: float=0, dy: float=0, check_intersect: bool=True):
         """
