@@ -1,0 +1,2 @@
+cython==0.26
+git+https://github.com/nsf/termbox
