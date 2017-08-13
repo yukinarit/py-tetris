@@ -1,18 +1,16 @@
-import datetime
 import sys
 import traceback
-from .terminal import Terminal, Vector2, Size, Exit
-from .game import Block
+from .game import Game, Tetrimino, Exit
 
 
 def run():
     rv = 1
 
     try:
-        with Terminal(debug=True) as term:
-            while True:
-                o = Block(x=10, y=10)
-                term.update(datetime.datetime.now(), [o])
+        with Game() as game:
+            o = Tetrimino(x=10, y=10)
+            game.add(o)
+            game.run()
 
     except Exit as e:
         rv = e.code

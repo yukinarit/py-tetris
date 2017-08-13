@@ -5,8 +5,10 @@ import random
 import os
 from typing import List, Tuple
 from termbox import DEFAULT, BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, \
-        WHITE
+        WHITE, KEY_ESC, KEY_ARROW_UP, KEY_ARROW_DOWN, KEY_ARROW_LEFT, \
+        KEY_ARROW_RIGHT, Termbox
 from .logger import create_logger
+from .exceptions import Exit
 
 
 __all__ = [
@@ -176,16 +178,7 @@ class Size(enum.IntEnum):
     MaxSize = w19xh19
 
 
-class StatusCode(enum.IntEnum):
-    OK = 0
-    Exit = 1
-
-
-class Exit(Exception):
-    code = StatusCode.Exit.value
-
-
-def render_objects(tm: Terminal, objects: List[Renderable]):
+def render_objects(tm: 'Terminal', objects: List['Renderable']):
     """
     Render objects in terminal.
     """
@@ -194,14 +187,13 @@ def render_objects(tm: Terminal, objects: List[Renderable]):
     if not tm.tb:
         raise RuntimeError('Null termbox')
 
-    center = tm.center()
     for o in objects:
         if not o:
             continue
         o.render(tm)
 
 
-def render(tm: Terminal, cells: List[Cell]):
+def render_cells(tm: 'Terminal', cells: List[Cell]):
     """
     Render cells in terminal.
     """
@@ -217,15 +209,16 @@ class Renderable:
     """
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self):
-        self.pos: Vector2 = None
+    def __init__(self, x: float=None, y: float=None):
+        self.pos: Vector2 = Vector2(x, y)
         self.prev_pos: Vector2 = None
         self.fg: Color = None
         self.bg: Color = None
         self.prev_direction: Dir = None
         self.direction: Dir = None
 
-    def render(self, tm: Terminal=None, dx: float=0, dy: float=0, check_intersect: bool=True):
+    def render(self, tm: 'Terminal'=None, dx: float=0, dy: float=0,
+               check_intersect: bool=True):
         """
         Render object.
         """
@@ -233,9 +226,7 @@ class Renderable:
         if not pos:
             logger.debug('Null pos.')
             return
-        size = self.get_size()
         fg, bg = self.get_color()
-
         rect = self.get_rect()
         left = rect.x1
         right = rect.x2
@@ -245,7 +236,8 @@ class Renderable:
         """
         if self.direction:
             trajectory = self.make_trajectory(rect=rect)
-            #logger.debug('dir:{}, trajectory:{}'.format(self.direction, str(trajectory)))
+            #logger.debug('dir:{}, trajectory:{}'.format(
+                          self.direction, str(trajectory)))
         else:
             trajectory = rect
         if check_intersect and tm.map.intersectd_with(rect=trajectory):
@@ -261,15 +253,14 @@ class Renderable:
         if tm.debug:
             x = right + 1
             y = bottom + 1
-            coord = "xy({},{}),w={},y={}".format(
-                x, y, self.get_width(), self.get_height()
-            )
+            coord = "xy({},{}),w={},y={},rect={}".format(
+                x, y, self.get_width(), self.get_height(), rect)
             for c in coord:
                 cell = Cell(x=x-dx, y=y-dy, fg=fg, c=ord(c))
                 cells.append(cell)
                 x += 1
 
-        render(tm, cells)
+        render_cells(tm, cells)
 
     def move(self, direction: Dir=None, pos: Vector2=None):
         self.prev_direction = self.direction
@@ -277,7 +268,8 @@ class Renderable:
             self.direction = direction
             self.prev_pos = copy.deepcopy(self.pos)
             self.pos += direction.value
-            logger.debug('{} {} {} {}'.format(direction, direction.name, direction.value, self.pos))
+            logger.debug('{} {} {} {}'.format(direction, direction.name,
+                         direction.value, self.pos))
         if pos:
             self.prev_pos = copy.deepcopy(self.pos)
             self.pos = pos
@@ -288,20 +280,13 @@ class Renderable:
     def get_rect(self) -> Rect:
         pos = self.get_pos()
         size = self.get_size()
-        diameter = Vector2()
-        diameter.y = int((size - 1) / 2)
-        diameter.x = int((size - 1) / 2)
+        diameter = Vector2(x=int((size - 1) / 2), y=int((size - 1) / 2))
+
         left = pos.x - diameter.x
         right = pos.x + diameter.x
         bottom = pos.y - diameter.y
         top = pos.y + diameter.y
-        rect = Rect(
-            x1=left,
-            y1=bottom,
-            x2=right,
-            y2=top,
-        )
-        return rect
+        return Rect(x1=left, y1=bottom, x2=right, y2=top)
 
     def make_trajectory(self, rect=None):
         rect = rect or self.get_rect()
@@ -403,7 +388,7 @@ class Map(Renderable):
                 cell = Cell(x=x-dx, y=y-dy, fg=Color.White, c=ord(c))
                 cells.append(cell)
 
-        render(tm, cells)
+        render_cells(tm, cells)
 
     def intersectd_with(self, pos: Vector2=None, rect: Rect=None):
         """
@@ -419,9 +404,9 @@ class Map(Renderable):
                 return True
         elif rect:
             if self.intersectd_with(rect.lb) or \
-                self.intersectd_with(rect.lt) or \
-                self.intersectd_with(rect.rb) or \
-                self.intersectd_with(rect.rt):
+                    self.intersectd_with(rect.lt) or \
+                    self.intersectd_with(rect.rb) or \
+                    self.intersectd_with(rect.rt):
                 return True
             else:
                 return False
@@ -561,7 +546,7 @@ class Terminal:
         return self.tb.height()
 
     @property
-    def boundary(self):
+    def boundary(self) -> Rect:
         return Rect(x1=0, y1=0, x2=self.width, y2=self.height)
 
     def center(self):
@@ -575,8 +560,9 @@ class Terminal:
         """
         self.tb.clear()
 
-    def update(self, now, objects):
+    def update(self, now, *objects):
         """
+        Render any renderable object on the console.
         """
         self.clear()
         self.peek_key_event()
@@ -590,13 +576,10 @@ class Terminal:
                 raise RuntimeError('Null termbox')
 
             type_, uch, key, mod, w, h, x, y = self.tb.peek_event()
-            logger.debug('type:{type},uch={uch},key={key},mod={mod},w={w},h={h},x={x},y={y}'.format(
-                type=type_,
-                uch=uch,
-                key=key,
-                mod=mod,
-                w=w, h=h, x=x, y=y
-            ))
+            logger.debug('type:{type},uch={uch},key={key},mod={mod},'
+                         'w={w},h={h},x={x},y={y}'.format(
+                            type=type_, uch=uch, key=key, mod=mod,
+                            w=w, h=h, x=x, y=y))
             if key is not None:
                 cb = self.get_keydown_handler(key)
                 if cb:
@@ -613,3 +596,7 @@ class Terminal:
 
         except TypeError as e:
             pass
+
+        except Exception as e:
+            print(e)
+            raise
