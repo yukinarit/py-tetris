@@ -1,8 +1,9 @@
+import enum
 import time
 import traceback
 from typing import List
-from .terminal import Terminal, Color, Renderable, Size, \
-        Vector2, Dir, Shape, MouseKey
+from .terminal import Terminal, Renderable, Cell, Color, Size, \
+        Vector2, Dir, Shape, MouseKey, render_cells, CELLX, CELLY
 from .logger import create_logger
 from .exceptions import StatusCode, Exit
 
@@ -69,15 +70,43 @@ class GameObject(Renderable):
         self.set_size(value)
 
 
+class Angle(enum.IntEnum):
+    A0 = enum.auto()
+    A90 = enum.auto()
+    A270 = enum.auto()
+
+
 class Tetrimino(GameObject):
     """
     A block in Tetoris called Tetrimino.
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, angle: Angle, *args, **kwargs):
         super(Tetrimino, self).__init__(*args, **kwargs)
+        self.angle: Angle = angle
 
     def get_shape(self):
         return Shape.Square.value
+
+    def render(self, tm: 'Terminal'=None, dx: float=0, dy: float=0,
+               check_intersect: bool=True):
+        render_cells(tm, self.make_cells())
+
+    def make_cells(self) -> List[Cell]:
+        return []
+
+
+class ITetrimino(Tetrimino):
+    """
+    I-Tetorimino. The shape is like this ■ ■ ■ ■
+    """
+    def __init__(self, *args, **kwargs):
+        super(ITetrimino, self).__init__(Angle.A0, *args, **kwargs)
+
+    def make_cells(self) -> List[Cell]:
+        x = self.get_pos().x
+        y = self.get_pos().y
+        fg, bg = self.get_color()
+        return [Cell(x+n, y, fg, bg) for n in range(0, 4*CELLX)]
 
 
 class Game:
@@ -130,6 +159,6 @@ class Game:
         """
         Update terminal and game objects.
         """
-        for obj in self.objects:
-            obj.pos.y += 1
+        # for obj in self.objects:
+        #     obj.pos.y += 1
         self.terminal.update(now, *self.objects)

@@ -18,6 +18,7 @@ __all__ = [
     'Rect',
     'Cell',
     'Terminal',
+    'render_cells',
 ]
 
 
@@ -28,6 +29,10 @@ mapdir = os.path.join(basedir, '.')
 DEFAULT_SQUARE = 0x0020
 
 DEFAULT_COLOR = DEFAULT
+
+CELLX = 2
+
+CELLY = 1
 
 logger = create_logger(__name__)
 

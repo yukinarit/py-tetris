@@ -1,6 +1,6 @@
 import sys
 import traceback
-from .game import Game, Tetrimino, Exit
+from .game import Game, ITetrimino, Exit
 
 
 def run():
@@ -8,7 +8,7 @@ def run():
 
     try:
         with Game() as game:
-            o = Tetrimino(x=10, y=10)
+            o = ITetrimino(x=10, y=10)
             game.add(o)
             game.run()
 
