@@ -3,7 +3,7 @@ import time
 import traceback
 from typing import List
 from .terminal import Terminal, Renderable, Cell, Color, Size, \
-        Vector2, Dir, Shape, MouseKey, render_cells, CELLX, CELLY
+        Shape, render_cells, CELLX, CELLY
 from .logger import create_logger
 from .exceptions import StatusCode, Exit
 
@@ -106,7 +106,25 @@ class ITetrimino(Tetrimino):
         x = self.get_pos().x
         y = self.get_pos().y
         fg, bg = self.get_color()
-        return [Cell(x+n, y, fg, bg) for n in range(0, 4*CELLX)]
+        return [Cell(x+n, y, fg, bg) for n in range(0, 4 * CELLX)]
+
+
+class OTetrimino(Tetrimino):
+    """
+    I-Tetorimino. The shape is like this ■ ■ ■ ■
+    """
+    def __init__(self, *args, **kwargs):
+        super(OTetrimino, self).__init__(Angle.A0, *args, **kwargs)
+
+    def make_cells(self) -> List[Cell]:
+        x = self.get_pos().x
+        y = self.get_pos().y
+        fg, bg = self.get_color()
+        cells = []
+        for n in range(0, 2*CELLX):
+            for m in range(0, 2*CELLY):
+                cells.append(Cell(x+n, y+m, fg, bg))
+        return cells
 
 
 class Game:
@@ -143,8 +161,8 @@ class Game:
 
         except Exception as e:
             self.terminal.close()
-            #logger.error(e)
-            #logger.error(traceback.format_exc())
+            # logger.error(e)
+            # logger.error(traceback.format_exc())
             return -1
 
         return 0

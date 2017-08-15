@@ -54,7 +54,7 @@ class Color(enum.IntEnum):
 
     @classmethod
     def random_color(cls):
-        return random.randint(cls.Default, cls.Random-1)
+        return random.randint(cls.Default, cls.Random - 1)
 
 
 class Shape(enum.Enum):
@@ -76,10 +76,10 @@ class Vector2:
         self.y: int = y
 
     def __add__(self, other) -> 'Vector2':
-        return Vector2(self.x+other.x, self.y+other.y)
+        return Vector2(self.x + other.x, self.y + other.y)
 
     def __sub__(self, other) -> 'Vector2':
-        return Vector2(self.x-other.x, self.y-other.y)
+        return Vector2(self.x - other.x, self.y - other.y)
 
     def __repr__(self) -> str:
         return '<Vector2(x={},y={})>'.format(
@@ -214,7 +214,7 @@ class Renderable:
     """
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, x: float=None, y: float=None):
+    def __init__(self, x: int=None, y: int=None):
         self.pos: Vector2 = Vector2(x, y)
         self.prev_pos: Vector2 = None
         self.fg: Color = None
@@ -222,7 +222,7 @@ class Renderable:
         self.prev_direction: Dir = None
         self.direction: Dir = None
 
-    def render(self, tm: 'Terminal'=None, dx: float=0, dy: float=0,
+    def render(self, tm: 'Terminal'=None, dx: int=0, dy: int=0,
                check_intersect: bool=True):
         """
         Render object.
@@ -582,9 +582,9 @@ class Terminal:
 
             type_, uch, key, mod, w, h, x, y = self.tb.peek_event()
             logger.debug('type:{type},uch={uch},key={key},mod={mod},'
-                         'w={w},h={h},x={x},y={y}'.format(
-                            type=type_, uch=uch, key=key, mod=mod,
-                            w=w, h=h, x=x, y=y))
+                         'w={w},h={h},x={x},y={y}'.
+                         format(type=type_, uch=uch, key=key, mod=mod,
+                                w=w, h=h, x=x, y=y))
             if key is not None:
                 cb = self.get_keydown_handler(key)
                 if cb:
