@@ -1,4 +1,5 @@
 import enum
+import itertools
 import time
 import traceback
 from typing import List
@@ -23,7 +24,7 @@ class GameObject(Renderable):
     """
     Base game object.
     """
-    def __init__(self, x: int, y: int):
+    def __init__(self, x: int, y: int) -> None:
         super(GameObject, self).__init__(x, y)
         self.size = Size.w1xh1
         self.collisions = {}
@@ -76,11 +77,30 @@ class Angle(enum.IntEnum):
     A270 = enum.auto()
 
 
+class BlockCoordinate:
+    @staticmethod
+    def translate_to_cell(x, y):
+        return x * CELLX, y * CELLY
+
+    @staticmethod
+    def translate_to_block(self, x, y):
+        return int(x / CELLX), int(y / CELLY)
+
+
+class Block():
+    """
+    A piece of tetrimino.
+    """
+    def __init__(self, x: int, y: int, fg: Color, bg: Color) -> None:
+        x, y = BlockCoordinate.translate_to_cell(x, y)
+        self.cells = [Cell(x+n, y, fg, bg) for n in range(0, CELLX)]
+
+
 class Tetrimino(GameObject):
     """
     A block in Tetoris called Tetrimino.
     """
-    def __init__(self, angle: Angle, *args, **kwargs):
+    def __init__(self, angle: Angle, *args, **kwargs) -> None:
         super(Tetrimino, self).__init__(*args, **kwargs)
         self.angle: Angle = angle
 
@@ -97,9 +117,10 @@ class Tetrimino(GameObject):
 
 class ITetrimino(Tetrimino):
     """
-    I-Tetorimino. The shape is like this ■ ■ ■ ■
+    I-Tetorimino. The shape is like this
+    ■ ■ ■ ■
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super(ITetrimino, self).__init__(Angle.A0, *args, **kwargs)
 
     def make_cells(self) -> List[Cell]:
@@ -111,9 +132,11 @@ class ITetrimino(Tetrimino):
 
 class OTetrimino(Tetrimino):
     """
-    I-Tetorimino. The shape is like this ■ ■ ■ ■
+    I-Tetorimino. The shape is like this
+    ■ ■
+    ■ ■
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super(OTetrimino, self).__init__(Angle.A0, *args, **kwargs)
 
     def make_cells(self) -> List[Cell]:
@@ -127,11 +150,27 @@ class OTetrimino(Tetrimino):
         return cells
 
 
+class STetrimino(Tetrimino):
+    """
+    S-Tetorimino. The shape is like this
+      ■ ■
+    ■ ■
+    """
+    def __init__(self, *args, **kwargs) -> None:
+        super(STetrimino, self).__init__(Angle.A0, *args, **kwargs)
+
+    def make_cells(self) -> List[Cell]:
+        x = self.get_pos().x
+        y = self.get_pos().y
+        fg, bg = self.get_color()
+        cells = list(itertools.chain(Block(x, y, fg, bg).cells))
+        return cells
+
 class Game:
     """
     Game main class.
     """
-    def __init__(self):
+    def __init__(self) -> None:
         self.terminal: Terminal = Terminal(debug=True)
         self.objects: List[GameObject] = []
 
