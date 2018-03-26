@@ -30,9 +30,6 @@ INDENT_FORMATTER = IndentFormatter(
     datefmt='%Y-%m-%d %H:%M:%S')
 
 
-SYSLOG_FORMATTER = logging.Formatter('%(name)s %(levelname)s %(message)s')
-
-
 class Level(enum.IntEnum):
     DEBUG = logging.DEBUG
     INFO = logging.INFO
@@ -83,8 +80,6 @@ def create_logger(name: str, **options) -> ColorizedLogger:
 
 def setup_logger(logger: ColorizedLogger, level: Level=Level.INFO,
                  file: pathlib.Path=None, stdout: bool=False,
-                 syslog: bool=False, syslog_addr=('localhost', 514),
-                 syslog_level: Level=Level.ERROR,
                  facility: int=logging.handlers.SysLogHandler.LOG_USER,
                  color: bool=False, indent_formatter: bool=False,) -> None:
     """
@@ -108,10 +103,4 @@ def setup_logger(logger: ColorizedLogger, level: Level=Level.INFO,
         sh.setFormatter(formatter)
         sh.setLevel(level)
         logger.addHandler(sh)
-    if syslog:
-        sysh = logging.handlers.SysLogHandler(address=syslog_addr,
-                                              facility=facility)
-        sysh.setFormatter(SYSLOG_FORMATTER)
-        sysh.setLevel(syslog_level)
-        logger.addHandler(sysh)
     logger.color = color
