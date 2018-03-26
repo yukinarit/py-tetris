@@ -5,7 +5,7 @@ import time
 import traceback
 from typing import List, Dict
 from .terminal import Terminal, Renderable, Cell, Color, Size, \
-        Shape, render_cells, CELLX, CELLY, Vector2, Rect
+        Shape, render_cells, CELLX, CELLY, Vector2, Rect, MouseKey
 from .logger import create_logger
 from .exceptions import StatusCode, Exit
 
@@ -180,8 +180,6 @@ class Map(Renderable):
         )
 
 
-
-
 class Block():
     """
     A piece of tetrimino.
@@ -280,6 +278,13 @@ class Game:
             raise Exit()
         self.terminal.on_shutdown = terminal_on_shutdown
 
+        def on_left_key():
+            for obj in self.objects:
+                if hasattr(obj, 'pos'):
+                    obj.pos.x -= 0.1
+            self.terminal.update(now, *self.objects)
+        self.terminal.set_keydown_handler(MouseKey.j, on_left_key)
+
     def __enter__(self):
         return self
 
@@ -320,6 +325,5 @@ class Game:
         """
         for obj in self.objects:
             if hasattr(obj, 'pos'):
-                new_y = obj.pos.y + 0.1
                 obj.pos.y += 0.1
         self.terminal.update(now, *self.objects)

@@ -415,6 +415,7 @@ class Terminal:
             self.tb = None
 
     def set_keydown_handler(self, keys, cb):
+        logger.debug(f"set key handler for {keys}")
         if isinstance(keys, list):
             for key in keys:
                 self._keydown_handlers.update({key.value: cb})
@@ -422,8 +423,15 @@ class Terminal:
             key = keys
             self._keydown_handlers.update({key.value: cb})
 
-    def get_keydown_handler(self, keyvalue):
-        return self._keydown_handlers.get(keyvalue)
+    def get_keydown_handler(self, key: MouseKey) -> Callable:
+        logger.debug(f"get key handler for {key}.")
+        handler = self._keydown_handlers.get(key)
+        if handler:
+            logger.debug(f"key handler found for {key}.")
+            return handler
+        else:
+            logger.debug(f"key handler not found for {key}.")
+            return None
 
     @property
     def on_shutdown(self):
