@@ -3,7 +3,6 @@ import datetime
 import enum
 import functools
 import itertools
-import os
 import time
 import traceback
 import pathlib
@@ -295,6 +294,46 @@ class STetrimino(Tetrimino):
             Block(x+2, y+1, fg, bg)]
 
 
+class LTetrimino(Tetrimino):
+    """
+    L-Tetorimino. The shape is like this
+        ■
+    ■ ■ ■
+    """
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(Angle.A0, *args, **kwargs)
+
+    def make_blocks(self) -> List[Block]:
+        x = self.get_pos().x
+        y = self.get_pos().y
+        fg, bg = self.get_color()
+        return [
+            Block(x, y, fg, bg),
+            Block(x+1, y, fg, bg),
+            Block(x+2, y, fg, bg),
+            Block(x+2, y+1, fg, bg)]
+
+
+class TTetrimino(Tetrimino):
+    """
+    L-Tetorimino. The shape is like this
+      ■
+    ■ ■ ■
+    """
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(Angle.A0, *args, **kwargs)
+
+    def make_blocks(self) -> List[Block]:
+        x = self.get_pos().x
+        y = self.get_pos().y
+        fg, bg = self.get_color()
+        return [
+            Block(x, y, fg, bg),
+            Block(x+1, y, fg, bg),
+            Block(x+1, y+1, fg, bg),
+            Block(x+2, y, fg, bg)]
+
+
 class Game:
     """
     Game main class.
@@ -316,9 +355,9 @@ class Game:
                 obj.pos.y += dy
             self.terminal.update(now(), *self.objects)
 
-        self.terminal.set_keydown_handler(MouseKey.Left, functools.partial(move, dx=-0.1, dy=0.0))
-        self.terminal.set_keydown_handler(MouseKey.Right, functools.partial(move, dx=0.1, dy=0.0))
-        self.terminal.set_keydown_handler(MouseKey.Down, functools.partial(move, dx=0.0, dy=0.1))
+        self.terminal.set_keydown_handler(MouseKey.Left, functools.partial(move, dx=-0.2, dy=0.0))
+        self.terminal.set_keydown_handler(MouseKey.Right, functools.partial(move, dx=0.2, dy=0.0))
+        self.terminal.set_keydown_handler(MouseKey.Down, functools.partial(move, dx=0.0, dy=0.2))
 
         current_rotate = 0
         def rotate(key):
@@ -427,7 +466,7 @@ class Game:
         Update terminal and game objects.
         """
         for obj in itertools.chain([self.player], self.objects):
-            obj.pos.y += 0.05
+            obj.pos.y += 0.025
         self.terminal.update(now, self.map, self.player, *self.objects)
 
         # Update collision
