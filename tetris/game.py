@@ -6,6 +6,7 @@ import itertools
 import os
 import time
 import traceback
+import pathlib
 from typing import List, Dict, Callable
 from .terminal import Terminal, Renderable, Cell, Color, Size, \
         Shape, render_cells, CELLX, CELLY, Vector2, Rect, MouseKey
@@ -19,9 +20,9 @@ DEFAULT_COLOR = Color.White
 
 DEFAULT_SIZE = Size.w3xh3
 
-basedir = os.path.abspath(os.path.dirname(__file__))
+basedir = pathlib.Path(__file__).parent
 
-mapdir = os.path.join(basedir, '.')
+mapdir = basedir
 
 logger = create_logger('game')
 
@@ -108,8 +109,8 @@ class Map(Renderable):
         self._rb = None
         self._rt = None
 
-    def load(self, mapfile):
-        with open(mapfile) as f:
+    def load(self, mapfile: pathlib.Path):
+        with open(str(mapfile)) as f:
             for line in f:
                 if not line:
                     continue
@@ -302,7 +303,7 @@ class Game:
         self.terminal: Terminal = Terminal(debug=True)
         self.objects: List[GameObject] = []
         self.map = Map()
-        self.map.load(os.path.join(mapdir, 'map.txt'))
+        self.map.load(mapdir / 'map.txt')
         self.objects.append(self.map)
 
         def terminal_on_shutdown():
