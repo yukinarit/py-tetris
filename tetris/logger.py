@@ -3,11 +3,6 @@ import logging.handlers
 import os
 
 
-__all__ = [
-    'create_logger',
-]
-
-
 basedir = os.path.dirname(os.path.abspath(__file__))
 
 DEFAULT_LEVEL = logging.DEBUG

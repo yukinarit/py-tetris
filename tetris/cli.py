@@ -18,5 +18,5 @@ def run():
 
     except Exception as e:
         print(e)
-        print(traceback.format_exc())
+        traceback.print_exc()
         sys.exit(rv)

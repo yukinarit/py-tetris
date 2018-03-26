@@ -3,16 +3,12 @@ import itertools
 import os
 import time
 import traceback
-from typing import List
+from typing import List, Dict
 from .terminal import Terminal, Renderable, Cell, Color, Size, \
         Shape, render_cells, CELLX, CELLY, Vector2, Rect
 from .logger import create_logger
 from .exceptions import StatusCode, Exit
 
-
-__all__ = [
-    'Game',
-]
 
 FPS = 40  # Game FPS (Frame Per Second)
 
@@ -32,7 +28,7 @@ class GameObject(Renderable):
     def __init__(self, x: int, y: int) -> None:
         super(GameObject, self).__init__(x, y)
         self.size = Size.w1xh1
-        self.collisions = {}
+        self.collisions: Dict = {}
         self.being_destroyed = False
         self.set_color(fg=DEFAULT_COLOR, bg=DEFAULT_COLOR)
         self.set_size(DEFAULT_SIZE)
@@ -97,7 +93,7 @@ class Map(Renderable):
     Map class.
     """
     def __init__(self) -> None:
-        self.data = []
+        self.data: List[str] = []
         self._lb = None
         self._lt = None
         self._rb = None
@@ -231,7 +227,7 @@ class ITetrimino(Tetrimino):
 
 class OTetrimino(Tetrimino):
     """
-    I-Tetorimino. The shape is like this
+    O-Tetorimino. The shape is like this
     ■ ■
     ■ ■
     """
