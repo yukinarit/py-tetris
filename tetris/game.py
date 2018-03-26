@@ -304,17 +304,16 @@ class Game:
         self.objects: List[GameObject] = []
         self.map = Map()
         self.map.load(mapdir / 'map.txt')
-        self.objects.append(self.map)
+        self.player: GameObject = None
 
         def terminal_on_shutdown():
             raise Exit()
         self.terminal.on_shutdown = terminal_on_shutdown
 
         def move(key, dx: float, dy: float):
-            for obj in self.objects:
-                if hasattr(obj, 'pos'):
-                    obj.pos.x += dx
-                    obj.pos.y += dy
+            for obj in [self.player]:
+                obj.pos.x += dx
+                obj.pos.y += dy
             self.terminal.update(now(), *self.objects)
 
         self.terminal.set_keydown_handler(MouseKey.Left, functools.partial(move, dx=-0.1, dy=0.0))
@@ -371,7 +370,7 @@ class Game:
                     rotate270,
                     rotate0]
 
-            for obj in self.objects:
+            for obj in [self.player]:
                 if hasattr(obj, 'pos'):
                     logger.warn(f'current_rotate: {current_rotate}')
                     obj.set_rotate(rotates[current_rotate])
@@ -380,8 +379,7 @@ class Game:
             if current_rotate >= len(rotates):
                 current_rotate = 0
 
-
-            self.terminal.update(now(), *self.objects)
+            self.terminal.update(now(), self.map, self.player, *self.objects)
         self.terminal.set_keydown_handler(MouseKey.Enter, rotate)
 
     def __enter__(self):
@@ -414,15 +412,22 @@ class Game:
 
     def add(self, obj: GameObject):
         """
-        Add game object to the game class.
+        Add game object to the game.
         """
         self.objects.append(obj)
+
+    def add_player(self, obj: GameObject):
+        """
+        Add player controllable game object to the game.
+        """
+        self.player = obj
 
     def update(self, now):
         """
         Update terminal and game objects.
         """
-        for obj in self.objects:
-            if hasattr(obj, 'pos'):
-                obj.pos.y += 0.05
-        self.terminal.update(now, *self.objects)
+        for obj in itertools.chain([self.player], self.objects):
+            obj.pos.y += 0.05
+        self.terminal.update(now, self.map, self.player, *self.objects)
+
+        # Update collision

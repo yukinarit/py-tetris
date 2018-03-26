@@ -14,6 +14,7 @@ def run():
 
     try:
         with Game() as game:
+            game.add_player(ITetrimino(x=0, y=0))
             game.add(ITetrimino(x=5, y=10))
             game.add(OTetrimino(x=20, y=20))
             game.add(STetrimino(x=10, y=14))
