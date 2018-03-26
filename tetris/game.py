@@ -1,3 +1,4 @@
+import abc
 import datetime
 import enum
 import functools
@@ -5,7 +6,7 @@ import itertools
 import os
 import time
 import traceback
-from typing import List, Dict
+from typing import List, Dict, Callable
 from .terminal import Terminal, Renderable, Cell, Color, Size, \
         Shape, render_cells, CELLX, CELLY, Vector2, Rect, MouseKey
 from .logging import create_logger
@@ -188,32 +189,50 @@ class Map(Renderable):
         )
 
 
-class Block():
+class Block:
     """
     A piece of tetrimino.
     """
     def __init__(self, x: int, y: int, fg: Color, bg: Color) -> None:
-        x, y = BlockCoordinate.translate_to_cell(x, y)
-        self.cells = [Cell(x+n, y, fg, bg) for n in range(0, CELLX)]
+        self.x = x
+        self.y = y
+        self.fg = fg
+        self.bg = bg
+
+    @property
+    def cells(self) -> List[Cell]:
+        x, y = BlockCoordinate.translate_to_cell(self.x, self.y)
+        return [Cell(x+n, y, self.fg, self.bg) for n in range(0, CELLX)]
 
 
 class Tetrimino(GameObject):
     """
     A block in Tetoris called Tetrimino.
     """
+    __metaclass__ = abc.ABCMeta
+
     def __init__(self, angle: Angle, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.angle: Angle = angle
+        self.rotate: Callable = None
 
     def get_shape(self):
         return Shape.Square.value
 
+    def set_rotate(self, f: Callable) -> None:
+        self.rotate = f
+
     def render(self, tm: 'Terminal'=None, dx: float=0, dy: float=0,
                check_intersect: bool=True):
-        render_cells(tm, self.make_cells())
+        blocks = self.make_blocks()
+        if self.rotate:
+            blocks = self.rotate(blocks)
+        cells = list(itertools.chain(*[b.cells for b in blocks]))
+        render_cells(tm, cells)
 
-    def make_cells(self) -> List[Cell]:
-        return []
+    @abc.abstractmethod
+    def make_blocks(self) -> List[Block]:
+        pass
 
 
 class ITetrimino(Tetrimino):
@@ -224,11 +243,15 @@ class ITetrimino(Tetrimino):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(Angle.A0, *args, **kwargs)
 
-    def make_cells(self) -> List[Cell]:
+    def make_blocks(self) -> List[Block]:
         x = self.get_pos().x
         y = self.get_pos().y
         fg, bg = self.get_color()
-        return [Cell(x+n, y, fg, bg) for n in range(0, 4 * CELLX)]
+        return [
+            Block(x, y, fg, bg),
+            Block(x+1, y, fg, bg),
+            Block(x+2, y, fg, bg),
+            Block(x+3, y, fg, bg)]
 
 
 class OTetrimino(Tetrimino):
@@ -240,15 +263,15 @@ class OTetrimino(Tetrimino):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(Angle.A0, *args, **kwargs)
 
-    def make_cells(self) -> List[Cell]:
+    def make_blocks(self) -> List[Block]:
         x = self.get_pos().x
         y = self.get_pos().y
         fg, bg = self.get_color()
-        cells = []
-        for n in range(0, 2*CELLX):
-            for m in range(0, 2*CELLY):
-                cells.append(Cell(x+n, y+m, fg, bg))
-        return cells
+        return [
+            Block(x, y, fg, bg),
+            Block(x+1, y, fg, bg),
+            Block(x, y+1, fg, bg),
+            Block(x+1, y+1, fg, bg)]
 
 
 class STetrimino(Tetrimino):
@@ -260,16 +283,16 @@ class STetrimino(Tetrimino):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(Angle.A0, *args, **kwargs)
 
-    def make_cells(self) -> List[Cell]:
+    def make_blocks(self) -> List[Block]:
         x = self.get_pos().x
         y = self.get_pos().y
         fg, bg = self.get_color()
-        cells = list(itertools.chain(
-            Block(x, y, fg, bg).cells,
-            Block(x+1, y, fg, bg).cells,
-            Block(x+1, y+1, fg, bg).cells,
-            Block(x+2, y+1, fg, bg).cells))
-        return cells
+        return [
+            Block(x, y, fg, bg),
+            Block(x+1, y, fg, bg),
+            Block(x+1, y+1, fg, bg),
+            Block(x+2, y+1, fg, bg)]
+
 
 class Game:
     """
@@ -296,6 +319,69 @@ class Game:
         self.terminal.set_keydown_handler(MouseKey.Left, functools.partial(move, dx=-0.1, dy=0.0))
         self.terminal.set_keydown_handler(MouseKey.Right, functools.partial(move, dx=0.1, dy=0.0))
         self.terminal.set_keydown_handler(MouseKey.Down, functools.partial(move, dx=0.0, dy=0.1))
+
+        current_rotate = 0
+        def rotate(key):
+            nonlocal current_rotate
+            def rotate0(blocks):
+                first = blocks[0]
+                for n, b in enumerate(blocks):
+                    if b is first:
+                        continue
+                    dx = 0
+                    dy = 0
+                    logger.debug(f'Rotating90 n={n}, dx={dx},dy={dy}')
+                return blocks
+            def rotate90(blocks):
+                first = blocks[0]
+                for n, b in enumerate(blocks):
+                    if b is first:
+                        continue
+                    dx = abs(b.x - first.x)
+                    dy = abs(b.y - first.y)
+                    b.x = first.x - dy
+                    b.y = first.y - dx
+                    logger.debug(f'Rotating90 n={n}, dx={dx},dy={dy}')
+                return blocks
+            def rotate180(blocks):
+                first = blocks[0]
+                for n, b in enumerate(blocks):
+                    if b is first:
+                        continue
+                    dy = 0
+                    dx = abs(b.x - first.x)
+                    b.x = first.x - dx
+                    logger.debug(f'Rotating180 n={n}, dx={dx},dy={dy}')
+                return blocks
+            def rotate270(blocks):
+                first = blocks[0]
+                for n, b in enumerate(blocks):
+                    if b is first:
+                        continue
+                    dx = abs(b.x - first.x)
+                    dy = abs(b.y - first.y)
+                    b.x = first.x - dy
+                    b.y = first.y + dx
+                    logger.debug(f'Rotating270 n={n}, dx={dx},dy={dy}')
+                return blocks
+            rotates = [
+                    rotate90,
+                    rotate180,
+                    rotate270,
+                    rotate0]
+
+            for obj in self.objects:
+                if hasattr(obj, 'pos'):
+                    logger.warn(f'current_rotate: {current_rotate}')
+                    obj.set_rotate(rotates[current_rotate])
+
+            current_rotate += 1
+            if current_rotate >= len(rotates):
+                current_rotate = 0
+
+
+            self.terminal.update(now(), *self.objects)
+        self.terminal.set_keydown_handler(MouseKey.Enter, rotate)
 
     def __enter__(self):
         return self
@@ -337,5 +423,5 @@ class Game:
         """
         for obj in self.objects:
             if hasattr(obj, 'pos'):
-                obj.pos.y += 0.1
+                obj.pos.y += 0.05
         self.terminal.update(now, *self.objects)
