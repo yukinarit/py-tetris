@@ -1,10 +1,11 @@
 import enum
 import itertools
+import os
 import time
 import traceback
 from typing import List
 from .terminal import Terminal, Renderable, Cell, Color, Size, \
-        Shape, render_cells, CELLX, CELLY
+        Shape, render_cells, CELLX, CELLY, Vector2, Rect
 from .logger import create_logger
 from .exceptions import StatusCode, Exit
 
@@ -18,6 +19,10 @@ FPS = 40  # Game FPS (Frame Per Second)
 DEFAULT_COLOR = Color.White
 
 DEFAULT_SIZE = Size.w3xh3
+
+basedir = os.path.abspath(os.path.dirname(__file__))
+
+mapdir = os.path.join(basedir, '.')
 
 
 class GameObject(Renderable):
@@ -85,6 +90,100 @@ class BlockCoordinate:
     @staticmethod
     def translate_to_block(self, x, y):
         return int(x / CELLX), int(y / CELLY)
+
+
+class Map(Renderable):
+    """
+    Map class.
+    """
+    def __init__(self) -> None:
+        self.data = []
+        self._lb = None
+        self._lt = None
+        self._rb = None
+        self._rt = None
+
+    def load(self, mapfile):
+        with open(mapfile) as f:
+            for line in f:
+                if not line:
+                    continue
+                self.data.append(line.strip())
+        self._lt = Vector2(0, 0)
+        self._lb = Vector2(0, len(self.data))
+        self._rt = Vector2(len(self.data[0]), 0)
+        self._rb = Vector2(len(self.data[0]), len(self.data))
+
+    def render(self, tm=None, dx=0, dy=0):
+        cells = []
+        for y, line in enumerate(self.data):
+            for x, c in enumerate(line):
+                cell = Cell(x=x-dx, y=y-dy, fg=Color.White, c=ord(c))
+                cells.append(cell)
+
+        render_cells(tm, cells)
+
+    def intersectd_with(self, pos: Vector2=None, rect: Rect=None):
+        """
+        """
+        if pos:
+            try:
+                v = self.data[pos.y][pos.x].strip()
+                if v:
+                    return True
+                else:
+                    return False
+            except IndexError:
+                return True
+        elif rect:
+            if self.intersectd_with(rect.lb) or \
+                    self.intersectd_with(rect.lt) or \
+                    self.intersectd_with(rect.rb) or \
+                    self.intersectd_with(rect.rt):
+                return True
+            else:
+                return False
+        else:
+            pass
+
+    @property
+    def lb(self):
+        """
+        Left bottom
+        """
+        return self._lb
+
+    @property
+    def lt(self):
+        """
+        Left top
+        """
+        return self._lt
+
+    @property
+    def rb(self):
+        """
+        Right bottom
+        """
+        return self._rb
+
+    @property
+    def rt(self):
+        """
+        Right top
+        """
+        return self._rt
+
+    @property
+    def boundary(self):
+        return Rect(
+            self.lt.x,
+            self.lt.y,
+            self.rb.x,
+            self.rb.y,
+        )
+
+
 
 
 class Block():
@@ -163,7 +262,11 @@ class STetrimino(Tetrimino):
         x = self.get_pos().x
         y = self.get_pos().y
         fg, bg = self.get_color()
-        cells = list(itertools.chain(Block(x, y, fg, bg).cells))
+        cells = list(itertools.chain(
+            Block(x, y, fg, bg).cells,
+            Block(x+1, y, fg, bg).cells,
+            Block(x+1, y+1, fg, bg).cells,
+            Block(x+2, y+1, fg, bg).cells))
         return cells
 
 class Game:
@@ -173,6 +276,9 @@ class Game:
     def __init__(self) -> None:
         self.terminal: Terminal = Terminal(debug=True)
         self.objects: List[GameObject] = []
+        self.map = Map()
+        self.map.load(os.path.join(mapdir, 'map.txt'))
+        self.objects.append(self.map)
 
         def terminal_on_shutdown():
             raise Exit()
@@ -200,8 +306,8 @@ class Game:
 
         except Exception as e:
             self.terminal.close()
-            # logger.error(e)
-            # logger.error(traceback.format_exc())
+            print(e)
+            print(traceback.format_exc())
             return -1
 
         return 0
@@ -216,6 +322,8 @@ class Game:
         """
         Update terminal and game objects.
         """
-        # for obj in self.objects:
-        #     obj.pos.y += 1
+        for obj in self.objects:
+            if hasattr(obj, 'pos'):
+                new_y = obj.pos.y + 0.1
+                obj.pos.y += 0.1
         self.terminal.update(now, *self.objects)

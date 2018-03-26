@@ -10,7 +10,7 @@ def run():
         with Game() as game:
             game.add(ITetrimino(x=10, y=10))
             game.add(OTetrimino(x=20, y=20))
-            game.add(STetrimino(x=20, y=30))
+            game.add(STetrimino(x=10, y=14))
             game.run()
 
     except Exit as e:

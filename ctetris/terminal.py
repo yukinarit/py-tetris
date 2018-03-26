@@ -3,10 +3,10 @@ import copy
 import enum
 import random
 import os
-from typing import List, Tuple
-from termbox import DEFAULT, BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, \
-        WHITE, KEY_ESC, KEY_ARROW_UP, KEY_ARROW_DOWN, KEY_ARROW_LEFT, \
-        KEY_ARROW_RIGHT, Termbox
+from typing import List, Tuple, Dict, Callable
+from termbox import (DEFAULT, BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN,  # type: ignore
+        WHITE, KEY_ESC, KEY_ARROW_UP, KEY_ARROW_DOWN, KEY_ARROW_LEFT,
+        KEY_ARROW_RIGHT, Termbox)
 from .logger import create_logger
 from .exceptions import Exit
 
@@ -23,8 +23,6 @@ __all__ = [
 
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-
-mapdir = os.path.join(basedir, '.')
 
 DEFAULT_SQUARE = 0x0020
 
@@ -71,7 +69,7 @@ class Vector2:
     """
     Vector 2D class.
     """
-    def __init__(self, x: int=None, y: int=None):
+    def __init__(self, x: int=None, y: int=None) -> None:
         self.x: int = x
         self.y: int = y
 
@@ -101,7 +99,7 @@ class Rect:
     """
     Rectangle.
     """
-    def __init__(self, x1: int=0, y1: int=0, x2: int=0, y2: int=0):
+    def __init__(self, x1: int=0, y1: int=0, x2: int=0, y2: int=0) -> None:
         self.x1: int = x1
         self.y1: int = y1
         self.x2: int = x2
@@ -159,7 +157,7 @@ class Cell:
     Cell object.
     """
     def __init__(self, x: int=None, y: int=None, fg: Color=None,
-                 bg: Color=None, c: Shape=None):
+                 bg: Color=None, c: Shape=None) -> None:
         self.c: Shape = c or Shape.Default.value
         self.x: int = x
         self.y: int = y
@@ -214,7 +212,7 @@ class Renderable:
     """
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, x: int=None, y: int=None):
+    def __init__(self, x: int=None, y: int=None) -> None:
         self.pos: Vector2 = Vector2(x, y)
         self.prev_pos: Vector2 = None
         self.fg: Color = None
@@ -261,7 +259,7 @@ class Renderable:
             coord = "xy({},{}),w={},y={},rect={}".format(
                 x, y, self.get_width(), self.get_height(), rect)
             for c in coord:
-                cell = Cell(x=x-dx, y=y-dy, fg=fg, c=ord(c))
+                cell = Cell(x=x-dx, y=y-dy, fg=fg, c=Shape(ord(c)))
                 cells.append(cell)
                 x += 1
 
@@ -364,98 +362,6 @@ class Renderable:
         return None
 
 
-class Map(Renderable):
-    """
-    Map class.
-    """
-    def __init__(self):
-        self.data = []
-        self._lb = None
-        self._lt = None
-        self._rb = None
-        self._rt = None
-
-    def load(self, mapfile):
-        with open(mapfile) as f:
-            for line in f:
-                if not line:
-                    continue
-                self.data.append(line.strip())
-        self._lt = Vector2(0, 0)
-        self._lb = Vector2(0, len(self.data))
-        self._rt = Vector2(len(self.data[0]), 0)
-        self._rb = Vector2(len(self.data[0]), len(self.data))
-
-    def render(self, tm=None, dx=0, dy=0):
-        cells = []
-        for y, line in enumerate(self.data):
-            for x, c in enumerate(line):
-                cell = Cell(x=x-dx, y=y-dy, fg=Color.White, c=ord(c))
-                cells.append(cell)
-
-        render_cells(tm, cells)
-
-    def intersectd_with(self, pos: Vector2=None, rect: Rect=None):
-        """
-        """
-        if pos:
-            try:
-                v = self.data[pos.y][pos.x].strip()
-                if v:
-                    return True
-                else:
-                    return False
-            except IndexError:
-                return True
-        elif rect:
-            if self.intersectd_with(rect.lb) or \
-                    self.intersectd_with(rect.lt) or \
-                    self.intersectd_with(rect.rb) or \
-                    self.intersectd_with(rect.rt):
-                return True
-            else:
-                return False
-        else:
-            pass
-
-    @property
-    def lb(self):
-        """
-        Left bottom
-        """
-        return self._lb
-
-    @property
-    def lt(self):
-        """
-        Left top
-        """
-        return self._lt
-
-    @property
-    def rb(self):
-        """
-        Right bottom
-        """
-        return self._rb
-
-    @property
-    def rt(self):
-        """
-        Right top
-        """
-        return self._rt
-
-    @property
-    def boundary(self):
-        return Rect(
-            self.lt.x,
-            self.lt.y,
-            self.rb.x,
-            self.rb.y,
-        )
-
-
 class MouseKey(enum.Enum):
     ESC = KEY_ESC
     Left = KEY_ARROW_LEFT
@@ -496,15 +402,11 @@ class Terminal:
     """
     TermboxCls = Termbox
 
-    MapCls = Map
-
-    def __init__(self, debug=False):
+    def __init__(self, debug=False) -> None:
         self.tb = self.TermboxCls()
         logger.debug("init {}".format(self.tb))
         self.debug = debug
-        self.map = self.MapCls()
-        self.map.load(os.path.join(mapdir, 'map.txt'))
-        self._keydown_handlers = dict()
+        self._keydown_handlers: Dict[int, Callable] = {}
         self._on_shutdown = None
 
     def __enter__(self):
@@ -571,7 +473,6 @@ class Terminal:
         """
         self.clear()
         self.peek_key_event()
-        render_objects(self, [self.map])
         render_objects(self, objects)
         self.tb.present()
 
