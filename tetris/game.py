@@ -1,4 +1,6 @@
+import datetime
 import enum
+import functools
 import itertools
 import os
 import time
@@ -6,7 +8,7 @@ import traceback
 from typing import List, Dict
 from .terminal import Terminal, Renderable, Cell, Color, Size, \
         Shape, render_cells, CELLX, CELLY, Vector2, Rect, MouseKey
-from .logger import create_logger
+from .logging import create_logger
 from .exceptions import StatusCode, Exit
 
 
@@ -19,6 +21,12 @@ DEFAULT_SIZE = Size.w3xh3
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 mapdir = os.path.join(basedir, '.')
+
+logger = create_logger('game')
+
+
+def now() -> datetime.datetime:
+    return datetime.datetime.now()
 
 
 class GameObject(Renderable):
@@ -278,12 +286,16 @@ class Game:
             raise Exit()
         self.terminal.on_shutdown = terminal_on_shutdown
 
-        def on_left_key():
+        def move(key, dx: float, dy: float):
             for obj in self.objects:
                 if hasattr(obj, 'pos'):
-                    obj.pos.x -= 0.1
-            self.terminal.update(now, *self.objects)
-        self.terminal.set_keydown_handler(MouseKey.j, on_left_key)
+                    obj.pos.x += dx
+                    obj.pos.y += dy
+            self.terminal.update(now(), *self.objects)
+
+        self.terminal.set_keydown_handler(MouseKey.Left, functools.partial(move, dx=-0.1, dy=0.0))
+        self.terminal.set_keydown_handler(MouseKey.Right, functools.partial(move, dx=0.1, dy=0.0))
+        self.terminal.set_keydown_handler(MouseKey.Down, functools.partial(move, dx=0.0, dy=0.1))
 
     def __enter__(self):
         return self

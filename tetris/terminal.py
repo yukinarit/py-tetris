@@ -7,7 +7,7 @@ from typing import List, Tuple, Dict, Callable
 from termbox import (DEFAULT, BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN,  # type: ignore
         WHITE, KEY_ESC, KEY_ARROW_UP, KEY_ARROW_DOWN, KEY_ARROW_LEFT,
         KEY_ARROW_RIGHT, Termbox)
-from .logger import create_logger
+from .logging import create_logger
 from .exceptions import Exit
 
 
@@ -21,7 +21,7 @@ CELLX = 2
 
 CELLY = 1
 
-logger = create_logger(__name__)
+logger = create_logger('term')
 
 
 class Color(enum.IntEnum):
