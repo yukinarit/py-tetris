@@ -2,12 +2,11 @@ import abc
 import copy
 import enum
 import random
-import os
 import pathlib
 from typing import List, Tuple, Dict, Callable
 from termbox import (DEFAULT, BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN,  # type: ignore
-        WHITE, KEY_ESC, KEY_ARROW_UP, KEY_ARROW_DOWN, KEY_ARROW_LEFT, KEY_ENTER,
-        KEY_ARROW_RIGHT, Termbox)
+    WHITE, KEY_ESC, KEY_ARROW_UP, KEY_ARROW_DOWN, KEY_ARROW_LEFT, KEY_ENTER,
+    KEY_ARROW_RIGHT, Termbox)
 from .logging import create_logger
 from .exceptions import Exit
 
@@ -70,12 +69,10 @@ class Vector2:
         return Vector2(self.x - other.x, self.y - other.y)
 
     def __repr__(self) -> str:
-        return '<Vector2(x={},y={})>'.format(
-            self.x, self.y)
+        return f'<Vector2(x={self.x},y={self.y})>'
 
     def __str__(self) -> str:
-        return '(x={},y={})'.format(
-            self.x, self.y)
+        return f'(x={self.x},y={self.y})'
 
 
 class Dir(enum.Enum):
@@ -137,9 +134,8 @@ class Rect:
         return abs(self.y2 - self.y1) + 1
 
     def __repr__(self) -> str:
-        return '[Rect] lb={},lt={},rt={},rb={},w={},h={}'.format(
-            str(self.lb), str(self.lt), str(self.rt),
-            str(self.rb), self.get_width(), self.get_height())
+        return (f'[Rect] lb={self.lb},lt={self.lt},rt={self.rt},rb={self.rb},'
+                f'w={self.get_width()},h={self.get_height()}')
 
 
 class Cell:
@@ -481,10 +477,8 @@ class Terminal:
                 raise RuntimeError('Null termbox')
 
             type_, uch, key, mod, w, h, x, y = self.tb.peek_event()
-            logger.debug('type:{type},uch={uch},key={key},mod={mod},'
-                         'w={w},h={h},x={x},y={y}'.
-                         format(type=type_, uch=uch, key=key, mod=mod,
-                                w=w, h=h, x=x, y=y))
+            logger.debug(f'type:{type_},uch={uch},key={key},mod={mod},'
+                         f'w={w},h={h},x={x},y={y}')
             if key is not None:
                 cb = self.get_keydown_handler(key)
                 if cb:

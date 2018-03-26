@@ -360,8 +360,10 @@ class Game:
         self.terminal.set_keydown_handler(MouseKey.Down, functools.partial(move, dx=0.0, dy=0.2))
 
         current_rotate = 0
+
         def rotate(key):
             nonlocal current_rotate
+
             def rotate0(blocks):
                 first = blocks[0]
                 for n, b in enumerate(blocks):
@@ -371,6 +373,7 @@ class Game:
                     dy = 0
                     logger.debug(f'Rotating90 n={n}, dx={dx},dy={dy}')
                 return blocks
+
             def rotate90(blocks):
                 first = blocks[0]
                 for n, b in enumerate(blocks):
@@ -382,6 +385,7 @@ class Game:
                     b.y = first.y - dx
                     logger.debug(f'Rotating90 n={n}, dx={dx},dy={dy}')
                 return blocks
+
             def rotate180(blocks):
                 first = blocks[0]
                 for n, b in enumerate(blocks):
@@ -392,6 +396,7 @@ class Game:
                     b.x = first.x - dx
                     logger.debug(f'Rotating180 n={n}, dx={dx},dy={dy}')
                 return blocks
+
             def rotate270(blocks):
                 first = blocks[0]
                 for n, b in enumerate(blocks):
@@ -443,8 +448,8 @@ class Game:
 
         except Exception as e:
             self.terminal.close()
-            print(e)
-            print(traceback.format_exc())
+            logger.error(e)
+            logger.error(traceback.format_exc())
             return -1
 
         return 0
