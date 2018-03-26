@@ -26,7 +26,7 @@ class GameObject(Renderable):
     Base game object.
     """
     def __init__(self, x: int, y: int) -> None:
-        super(GameObject, self).__init__(x, y)
+        super().__init__(x, y)
         self.size = Size.w1xh1
         self.collisions: Dict = {}
         self.being_destroyed = False
@@ -196,7 +196,7 @@ class Tetrimino(GameObject):
     A block in Tetoris called Tetrimino.
     """
     def __init__(self, angle: Angle, *args, **kwargs) -> None:
-        super(Tetrimino, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.angle: Angle = angle
 
     def get_shape(self):
@@ -216,7 +216,7 @@ class ITetrimino(Tetrimino):
     ■ ■ ■ ■
     """
     def __init__(self, *args, **kwargs) -> None:
-        super(ITetrimino, self).__init__(Angle.A0, *args, **kwargs)
+        super().__init__(Angle.A0, *args, **kwargs)
 
     def make_cells(self) -> List[Cell]:
         x = self.get_pos().x
@@ -232,7 +232,7 @@ class OTetrimino(Tetrimino):
     ■ ■
     """
     def __init__(self, *args, **kwargs) -> None:
-        super(OTetrimino, self).__init__(Angle.A0, *args, **kwargs)
+        super().__init__(Angle.A0, *args, **kwargs)
 
     def make_cells(self) -> List[Cell]:
         x = self.get_pos().x
@@ -252,7 +252,7 @@ class STetrimino(Tetrimino):
     ■ ■
     """
     def __init__(self, *args, **kwargs) -> None:
-        super(STetrimino, self).__init__(Angle.A0, *args, **kwargs)
+        super().__init__(Angle.A0, *args, **kwargs)
 
     def make_cells(self) -> List[Cell]:
         x = self.get_pos().x
