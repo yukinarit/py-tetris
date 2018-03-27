@@ -1,5 +1,6 @@
 import abc
 import copy
+import collections
 import datetime
 import enum
 import functools
@@ -8,7 +9,7 @@ import time
 import traceback
 import pathlib
 import random
-from typing import List, Dict, Callable, Any
+from typing import List, Dict, Tuple, Callable, Any
 from .terminal import Terminal, Renderable, Cell, Color, Size, \
         Shape, render_cells, CELLX, CELLY, Vector2, Rect, MouseKey, \
         check_collision
@@ -52,6 +53,7 @@ class GameObject(Renderable):
     def __init__(self, x: int, y: int) -> None:
         super().__init__(x, y)
         self.parent: Any = None
+        self.children: List['GameObject'] = None
         self.collisions: Dict = {}
         self.being_destroyed = False
         self.set_color(fg=DEFAULT_COLOR, bg=DEFAULT_COLOR)
@@ -99,16 +101,88 @@ class BlockCoordinate:
         return int(x / CELLX), int(y / CELLY)
 
 
+class FieldInfo:
+    def __init__(self, x: int, y: int, obj: GameObject=None) -> None:
+        self.x = x
+        self.y = y
+        self.obj = obj
+        self.oid = id(self.obj)
+
+class Field:
+
+    def __init__(self, width: int, height: int) -> None:
+        self.width = width
+        self.height = height
+        self.data: List[List[FieldInfo]] = [[None for w in range(0, width)] for h in range(0, height)]
+        self.positions: Dict[int, List[FieldInfo]] = collections.defaultdict(list)
+
+    def update(self, x: int, y: int, obj: GameObject):
+        x = int(x)
+        y = int(y)
+        finfo = FieldInfo(x, y, obj)
+        self.data[x][y] = finfo
+        self.positions[id(obj)].append(finfo)
+
+    def get(self, x: int, y: int) -> FieldInfo:
+        x = int(x)
+        y = int(y)
+        try:
+            return self.data[x][y]
+        except KeyError:
+            return None
+
+    def remove_by(self, oid: int) -> None:
+        try:
+            positions: List[FieldInfo] = self.positions[oid]
+            del self.positions[oid]
+            for v in positions:
+                self.data[v.x][v.y] = None
+        except KeyError:
+            pass
+
+    def remove(self, x: int, y: int) -> None:
+        finfo = self.get(x, y)
+        if not finfo:
+            return
+        positions = self.positions[finfo.oid]
+        self.data[x][y] = None
+        for i, p in enumerate(positions):
+            if p.x == x and p.y == y:
+                del positions[i]
+        if not positions:
+            del self.positions[finfo.oid]
+
+
+    def check_filled(self, x: int) -> bool:
+        line = self.data[x]
+        for c in line:
+            if c is None:
+                return False
+        return True
+
+    def debug_print(self) -> None:
+        for x in range(self.width):
+            line = self.data[x]
+            msg = ""
+            for c in line:
+                if c is None:
+                    msg += '□'
+                else:
+                    msg += '■'
+            logger.debug(msg)
+        logger.debug('----------')
+
+
 class Map(Renderable):
     """
     Map class.
     """
     def __init__(self) -> None:
+        self.field: Field = None
         self.data: List[str] = []
-        self._lb: Vector2 = None
-        self._lt: Vector2 = None
-        self._rb: Vector2 = None
-        self._rt: Vector2 = None
+        self._width: int = 0
+        self._hight: int = 0
+        self._cells: List[Cell] = None
 
     @property
     def size(self) -> Size:
@@ -116,95 +190,39 @@ class Map(Renderable):
 
     @property
     def width(self) -> int:
-        pass
+        return self._width
 
     @property
     def height(self) -> int:
-        pass
+        return self._height
 
     @property
     def shape(self) -> Shape:
         return None
 
     def make_cells(self) -> List[Cell]:
+        if self._cells is not None:
+            return self._cells
+
         cells = []
+        self._width = len(self.data[0])
+        self._height = len(self.data)
         for y, line in enumerate(self.data):
             for x, c in enumerate(line):
                 if c == '*':
                     cell = Cell(x=x, y=y, fg=Color.White, c=ord(c))
                     cells.append(cell)
+        self._cells = cells
         return cells
 
     def load(self, mapfile: pathlib.Path):
-        with open(str(mapfile)) as f:
+        with mapfile.open() as f:
             for line in f:
                 if not line:
                     continue
                 self.data.append(line.strip())
-        self._lt = Vector2(0, 0)
-        self._lb = Vector2(0, len(self.data))
-        self._rt = Vector2(len(self.data[0]), 0)
-        self._rb = Vector2(len(self.data[0]), len(self.data))
-
-    def intersectd_with(self, pos: Vector2=None, rect: Rect=None):
-        """
-        """
-        if pos:
-            try:
-                v = self.data[int(pos.y)][int(pos.x)].strip()
-                if v:
-                    return True
-                else:
-                    return False
-            except IndexError:
-                return True
-        elif rect:
-            if self.intersectd_with(rect.lb) or \
-                    self.intersectd_with(rect.lt) or \
-                    self.intersectd_with(rect.rb) or \
-                    self.intersectd_with(rect.rt):
-                return True
-            else:
-                return False
-        else:
-            pass
-
-    @property
-    def lb(self):
-        """
-        Left bottom
-        """
-        return self._lb
-
-    @property
-    def lt(self):
-        """
-        Left top
-        """
-        return self._lt
-
-    @property
-    def rb(self):
-        """
-        Right bottom
-        """
-        return self._rb
-
-    @property
-    def rt(self):
-        """
-        Right top
-        """
-        return self._rt
-
-    @property
-    def boundary(self):
-        return Rect(
-            self.lt.x,
-            self.lt.y,
-            self.rb.x,
-            self.rb.y,
-        )
+        self.make_cells()
+        self.field = Field(self.width, self.height)
 
 
 class Block(Renderable):
@@ -399,7 +417,7 @@ class Game:
                         continue
                     dx = 0
                     dy = 0
-                    logger.debug(f'Rotating90 n={n}, dx={dx},dy={dy}')
+                    # logger.debug(f'Rotating90 n={n}, dx={dx},dy={dy}')
                 return blocks
 
             def rotate90(blocks):
@@ -411,7 +429,7 @@ class Game:
                     dy = abs(b.y - first.y)
                     b.x = first.x - dy
                     b.y = first.y - dx
-                    logger.debug(f'Rotating90 n={n}, dx={dx},dy={dy}')
+                    # logger.debug(f'Rotating90 n={n}, dx={dx},dy={dy}')
                 return blocks
 
             def rotate180(blocks):
@@ -422,7 +440,7 @@ class Game:
                     dy = 0
                     dx = abs(b.x - first.x)
                     b.x = first.x - dx
-                    logger.debug(f'Rotating180 n={n}, dx={dx},dy={dy}')
+                    # logger.debug(f'Rotating180 n={n}, dx={dx},dy={dy}')
                 return blocks
 
             def rotate270(blocks):
@@ -434,20 +452,20 @@ class Game:
                     dy = abs(b.y - first.y)
                     b.x = first.x - dy
                     b.y = first.y + dx
-                    logger.debug(f'Rotating270 n={n}, dx={dx},dy={dy}')
+                    # logger.debug(f'Rotating270 n={n}, dx={dx},dy={dy}')
                 return blocks
             rotates = [rotate90, rotate180, rotate270, rotate0]
 
             for obj in [self.player]:
                 if hasattr(obj, 'pos'):
-                    logger.warn(f'current_rotate: {current_rotate}')
+                    logger.debug(f'current_rotate: {current_rotate}')
                     obj.set_rotate(rotates[current_rotate])
 
             current_rotate += 1
             if current_rotate >= len(rotates):
                 current_rotate = 0
 
-            self.terminal.update(now(), self.map, self.player, *self.objects)
+            self.terminal.update(now(), self.player, *self.objects)
         self.terminal.set_keydown_handler(MouseKey.Enter, rotate)
 
     def __enter__(self):
@@ -479,7 +497,8 @@ class Game:
         return 0
 
     def spawn(self) -> None:
-        tetriminos = [ITetrimino, OTetrimino, STetrimino, TTetrimino, LTetrimino]
+        # tetriminos = [ITetrimino, OTetrimino, STetrimino, TTetrimino, LTetrimino]
+        tetriminos = [ITetrimino]
         colors = [Color.White, Color.Red, Color.Green, Color.Yellow,
                   Color.Blue, Color.Magenta, Color.Cyan]
         cls = random.choice(tetriminos)
@@ -490,12 +509,18 @@ class Game:
         orig = copy.copy(self.player.pos)
         self.player.pos.x += dx
         self.player.pos.y += dy
-        for obj in itertools.chain([self.map], self.objects):  # type: ignore
+        for obj in self.objects:  # type: ignore
             if check_collision(self.player, obj):
                 collided(self.player, obj, dx, dy)
                 collided(obj, self.player)
                 self.player.pos = orig
                 return
+
+        obj_id = id(self.player)
+        self.map.field.remove_by(obj_id)
+        for b in self.player.make_blocks():
+            for c in b.make_cells():
+                self.map.field.update(c.x, c.y, self.player)
         self.terminal.update(now(), *self.objects)
 
     def add(self, obj: GameObject):
@@ -520,4 +545,13 @@ class Game:
         if (now - self.last_second).seconds >= 1:
             self.last_second = now
             self.move(dx=0.0, dy=1)
-        self.terminal.update(now, self.map, self.player, *self.objects)
+            self.check_tetris()
+            self.map.field.debug_print()
+        self.terminal.update(now, self.player, *self.objects)
+
+    def check_tetris(self) -> None:
+        for x in range(0, self.map.height):
+            if self.map.field.check_filled(x):
+                logger.debug('The line is filled with blocks. It is going to be deleted.')
+                for y in range(0, 20):
+                    self.map.field.remove(x, y)
