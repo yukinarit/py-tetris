@@ -58,9 +58,9 @@ class Vector2:
     """
     Vector 2D class.
     """
-    def __init__(self, x: int=None, y: int=None) -> None:
-        self.x: int = x
-        self.y: int = y
+    def __init__(self, x: float=None, y: float=None) -> None:
+        self.x: float = x
+        self.y: float = y
 
     def __add__(self, other) -> 'Vector2':
         return Vector2(self.x + other.x, self.y + other.y)
@@ -86,11 +86,11 @@ class Rect:
     """
     Rectangle.
     """
-    def __init__(self, x1: int=0, y1: int=0, x2: int=0, y2: int=0) -> None:
-        self.x1: int = x1
-        self.y1: int = y1
-        self.x2: int = x2
-        self.y2: int = y2
+    def __init__(self, x1: float=0, y1: float=0, x2: float=0, y2: float=0) -> None:
+        self.x1: float = x1
+        self.y1: float = y1
+        self.x2: float = x2
+        self.y2: float = y2
 
     @property
     def lb(self) -> Vector2:
@@ -127,15 +127,16 @@ class Rect:
         return Vector2(self.x1 + (self.x2 - self.x1),
                        self.y1 + (self.y2 - self.y1))
 
-    def get_width(self) -> int:
+    def get_width(self) -> float:
         return abs(self.x2 - self.x1) + 1
 
-    def get_height(self) -> int:
+    @property
+    def height(self) -> float:
         return abs(self.y2 - self.y1) + 1
 
     def __repr__(self) -> str:
         return (f'[Rect] lb={self.lb},lt={self.lt},rt={self.rt},rb={self.rb},'
-                f'w={self.get_width()},h={self.get_height()}')
+                f'w={self.get_width()},h={self.height}')
 
 
 class Cell:
@@ -217,10 +218,10 @@ class Renderable:
             return
         fg, bg = self.get_color()
         rect = self.get_rect()
-        left = rect.x1
-        right = rect.x2
-        bottom = rect.y1
-        top = rect.y2
+        left = int(rect.x1)
+        right = int(rect.x2)
+        bottom = int(rect.y1)
+        top = int(rect.y2)
 
         """
         if self.direction:
@@ -237,13 +238,13 @@ class Renderable:
         cells = []
         for y in range(bottom, top+1):
             for x in range(left, right+1):
-                cell = Cell(x=x-dx, y=y-dy, fg=fg, bg=bg, c=self.get_shape())
+                cell = Cell(x=x-dx, y=y-dy, fg=fg, bg=bg, c=self.shape)
                 cells.append(cell)
         if tm.debug:
             x = right + 1
             y = bottom + 1
             coord = "xy({},{}),w={},y={},rect={}".format(
-                x, y, self.get_width(), self.get_height(), rect)
+                x, y, self.width, self.height, rect)
             for c in coord:
                 cell = Cell(x=x-dx, y=y-dy, fg=fg, c=Shape(ord(c)))
                 cells.append(cell)
@@ -268,7 +269,7 @@ class Renderable:
 
     def get_rect(self) -> Rect:
         pos = self.get_pos()
-        size = self.get_size()
+        size = self.size
         diameter = Vector2(x=int((size - 1) / 2), y=int((size - 1) / 2))
 
         left = pos.x - diameter.x
@@ -311,17 +312,21 @@ class Renderable:
             trajectory = rect
         return trajectory
 
-    @abc.abstractmethod
-    def get_size(self) -> Size:
+    @abc.abstractproperty
+    def size(self) -> Size:
         return Size.w1xh1
 
-    @abc.abstractmethod
-    def get_width(self) -> int:
+    @abc.abstractproperty
+    def width(self) -> int:
         pass
 
-    @abc.abstractmethod
-    def get_height(self) -> int:
+    @abc.abstractproperty
+    def height(self) -> int:
         pass
+
+    @abc.abstractproperty
+    def shape(self) -> Shape:
+        return None
 
     def set_color(self, fg: Color, bg: Color):
         """
@@ -339,13 +344,6 @@ class Renderable:
         Get foreground, background color.
         """
         return self.fg, self.bg
-
-    @abc.abstractmethod
-    def get_shape(self) -> Shape:
-        """
-        Get shape. Needs to be overridden.
-        """
-        return None
 
 
 class MouseKey(enum.Enum):
@@ -393,7 +391,7 @@ class Terminal:
         self.tb = self.TermboxCls()
         logger.debug("init {}".format(self.tb))
         self.debug = debug
-        self._keydown_handlers: Dict[int, Callable] = {}
+        self._keydown_handlers: Dict[MouseKey, Callable] = {}
         self._on_shutdown = None
 
     def __enter__(self):

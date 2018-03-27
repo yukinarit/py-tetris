@@ -36,26 +36,29 @@ class GameObject(Renderable):
     """
     def __init__(self, x: int, y: int) -> None:
         super().__init__(x, y)
-        self.size = Size.w1xh1
         self.collisions: Dict = {}
         self.being_destroyed = False
         self.set_color(fg=DEFAULT_COLOR, bg=DEFAULT_COLOR)
-        self.set_size(DEFAULT_SIZE)
+        self.size = DEFAULT_SIZE
 
-    def get_width(self):
+    @property
+    def width(self) -> int:
         return self.size.value
 
-    def get_height(self):
-        return self.size.value
+    @property
+    def height(self) -> int:
+        pass
 
-    def get_size(self) -> Size:
-        return self.size
+    @property
+    def size(self) -> Size:
+        return self._size
 
-    def set_size(self, size):
+    @size.setter
+    def size(self, size) -> None:
         if isinstance(size, Size):
-            self.size = size
+            self._size = size
         else:
-            self.size = Size(size)
+            self._size = Size(size)
 
     def on_collision_entered(self, collision=None):
         pass
@@ -103,10 +106,26 @@ class Map(Renderable):
     """
     def __init__(self) -> None:
         self.data: List[str] = []
-        self._lb = None
-        self._lt = None
-        self._rb = None
-        self._rt = None
+        self._lb: Vector2 = None
+        self._lt: Vector2 = None
+        self._rb: Vector2 = None
+        self._rt: Vector2 = None
+
+    @property
+    def size(self) -> Size:
+        return Size.w1xh1
+
+    @property
+    def width(self) -> int:
+        pass
+
+    @property
+    def height(self) -> int:
+        pass
+
+    @property
+    def shape(self) -> Shape:
+        return None
 
     def load(self, mapfile: pathlib.Path):
         with open(str(mapfile)) as f:
@@ -133,7 +152,7 @@ class Map(Renderable):
         """
         if pos:
             try:
-                v = self.data[pos.y][pos.x].strip()
+                v = self.data[int(pos.y)][int(pos.x)].strip()
                 if v:
                     return True
                 else:
@@ -193,7 +212,7 @@ class Block:
     """
     A piece of tetrimino.
     """
-    def __init__(self, x: int, y: int, fg: Color, bg: Color) -> None:
+    def __init__(self, x: float, y: float, fg: Color, bg: Color) -> None:
         self.x = x
         self.y = y
         self.fg = fg
@@ -341,7 +360,7 @@ class Game:
     def __init__(self) -> None:
         self.terminal: Terminal = Terminal(debug=True)
         self.objects: List[GameObject] = []
-        self.map = Map()
+        self.map: Map = Map()
         self.map.load(mapdir / 'map.txt')
         self.player: GameObject = None
 
@@ -408,11 +427,7 @@ class Game:
                     b.y = first.y + dx
                     logger.debug(f'Rotating270 n={n}, dx={dx},dy={dy}')
                 return blocks
-            rotates = [
-                    rotate90,
-                    rotate180,
-                    rotate270,
-                    rotate0]
+            rotates = [rotate90, rotate180, rotate270, rotate0]
 
             for obj in [self.player]:
                 if hasattr(obj, 'pos'):
