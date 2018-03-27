@@ -7,7 +7,8 @@ import itertools
 import time
 import traceback
 import pathlib
-from typing import List, Dict, Callable
+import random
+from typing import List, Dict, Callable, Any
 from .terminal import Terminal, Renderable, Cell, Color, Size, \
         Shape, render_cells, CELLX, CELLY, Vector2, Rect, MouseKey, \
         check_collision
@@ -32,12 +33,25 @@ def now() -> datetime.datetime:
     return datetime.datetime.now()
 
 
+def collided(obj: Renderable, other: Renderable, dx: float=None, dy: float=None):
+    if isinstance(obj, GameObject):
+        obj.on_collided(Collision(other, dx, dy))
+
+
+class Collision:
+    def __init__(self, other: Renderable, dx: float=None, dy: float=None) -> None:
+        self.other = other
+        self.dx = dx
+        self.dy = dy
+
+
 class GameObject(Renderable):
     """
     Base game object.
     """
     def __init__(self, x: int, y: int) -> None:
         super().__init__(x, y)
+        self.parent: Any = None
         self.collisions: Dict = {}
         self.being_destroyed = False
         self.set_color(fg=DEFAULT_COLOR, bg=DEFAULT_COLOR)
@@ -62,7 +76,7 @@ class GameObject(Renderable):
         else:
             self._size = Size(size)
 
-    def on_collided(self, other: Renderable=None):
+    def on_collided(self, col: Collision) -> None:
         pass
 
     def destroy(self):
@@ -193,7 +207,7 @@ class Map(Renderable):
         )
 
 
-class Block:
+class Block(Renderable):
     """
     A piece of tetrimino.
     """
@@ -203,8 +217,7 @@ class Block:
         self.fg = fg
         self.bg = bg
 
-    @property
-    def cells(self) -> List[Cell]:
+    def make_cells(self) -> List[Cell]:
         x, y = BlockCoordinate.translate_to_cell(self.x, self.y)
         return [Cell(x+n, y, self.fg, self.bg) for n in range(0, CELLX)]
 
@@ -215,13 +228,15 @@ class Tetrimino(GameObject):
     """
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, angle: Angle, *args, **kwargs) -> None:
+    def __init__(self, angle: Angle, bg: Color=Color.White, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.angle: Angle = angle
         self.rotate: Callable = None
+        self.bg = bg
 
-    def on_collided(self, other: Renderable=None):
-        logger.debug(f'Collided with {other}.')
+    def on_collided(self, col: Collision) -> None:
+        if col.dy is not None and col.dy > 0 and isinstance(self.parent, Game):
+            self.parent.will_spawn = True
 
     def get_shape(self):
         return Shape.Square.value
@@ -231,9 +246,19 @@ class Tetrimino(GameObject):
 
     def make_cells(self) -> List[Cell]:
         blocks = self.make_blocks()
+        collision = False
         if self.rotate:
-            blocks = self.rotate(blocks)
-        cells = list(itertools.chain(*[b.cells for b in blocks]))
+            blocks_ = self.rotate(blocks)
+            # for b in blocks_:
+            #     for obj in self.parent.objects:
+            #         if check_collision(b, obj):
+            #             collision = True
+            #             break
+            #     if collision:
+            #         break
+            if not collision:
+                blocks = blocks_
+        cells = list(itertools.chain(*[b.make_cells() for b in blocks]))
         return cells
 
     @abc.abstractmethod
@@ -351,6 +376,8 @@ class Game:
         self.map.load(mapdir / 'map.txt')
         self.player: GameObject = None
         self.last_second: datetime.datetime = now()
+        self.will_spawn = False
+        self.add(self.map)
 
         def terminal_on_shutdown():
             raise Exit()
@@ -436,6 +463,9 @@ class Game:
         try:
             while True:
                 self.update(now())
+                if self.will_spawn:
+                    self.spawn()
+                    self.will_spawn = False
                 time.sleep(1 / FPS)
 
         except Exit as e:
@@ -446,8 +476,15 @@ class Game:
             logger.error(e)
             logger.error(traceback.format_exc())
             return -1
-
         return 0
+
+    def spawn(self) -> None:
+        tetriminos = [ITetrimino, OTetrimino, STetrimino, TTetrimino, LTetrimino]
+        colors = [Color.White, Color.Red, Color.Green, Color.Yellow,
+                  Color.Blue, Color.Magenta, Color.Cyan]
+        cls = random.choice(tetriminos)
+        self.add(self.player)
+        self.add_player(cls(x=4, y=1, bg=random.choice(colors)))
 
     def move(self, dx: float, dy: float):
         orig = copy.copy(self.player.pos)
@@ -455,6 +492,8 @@ class Game:
         self.player.pos.y += dy
         for obj in itertools.chain([self.map], self.objects):  # type: ignore
             if check_collision(self.player, obj):
+                collided(self.player, obj, dx, dy)
+                collided(obj, self.player)
                 self.player.pos = orig
                 return
         self.terminal.update(now(), *self.objects)
@@ -463,12 +502,14 @@ class Game:
         """
         Add game object to the game.
         """
+        obj.parent = self
         self.objects.append(obj)
 
     def add_player(self, obj: GameObject):
         """
         Add player controllable game object to the game.
         """
+        obj.parent = self
         self.player = obj
 
     def update(self, now: datetime.datetime):
@@ -480,14 +521,3 @@ class Game:
             self.last_second = now
             self.move(dx=0.0, dy=1)
         self.terminal.update(now, self.map, self.player, *self.objects)
-        self.update_collision(now)
-
-    def update_collision(self, now: datetime.datetime) -> None:
-        def collided(obj: Renderable, other: Renderable):
-            if isinstance(obj, GameObject):
-                obj.on_collided(other)
-
-        for obj in itertools.chain([self.map], self.objects):  # type: ignore
-            if check_collision(self.player, obj):
-                collided(self.player, obj)
-                collided(obj, self.player)

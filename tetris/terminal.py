@@ -199,9 +199,8 @@ def check_collision(a: 'Renderable', b: 'Renderable') -> bool:
     """
     acells = a.make_cells()
     bcells = b.make_cells()
-    for i, ac in enumerate(acells):
-        for j, bc in enumerate(bcells):
-            # logger.debug(f'{i}-{j} {ac.x}, {bc.x}, {ac.y} {bc.y}')
+    for ac in acells:
+        for bc in bcells:
             if ac.x == bc.x and ac.y == bc.y:
                 return True
     return False
