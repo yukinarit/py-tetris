@@ -227,18 +227,6 @@ class Renderable:
         """
         render_cells(tm, self.make_cells())
 
-    def move(self, direction: Dir=None, pos: Vector2=None):
-        self.prev_direction = self.direction
-        if direction:
-            self.direction = direction
-            self.prev_pos = copy.deepcopy(self.pos)
-            self.pos += direction.value
-            logger.debug('{} {} {} {}'.format(direction, direction.name,
-                         direction.value, self.pos))
-        if pos:
-            self.prev_pos = copy.deepcopy(self.pos)
-            self.pos = pos
-
     def get_pos(self) -> Vector2:
         return self.pos
 
