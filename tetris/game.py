@@ -1,4 +1,5 @@
 import abc
+import copy
 import datetime
 import enum
 import functools
@@ -8,7 +9,8 @@ import traceback
 import pathlib
 from typing import List, Dict, Callable
 from .terminal import Terminal, Renderable, Cell, Color, Size, \
-        Shape, render_cells, CELLX, CELLY, Vector2, Rect, MouseKey
+        Shape, render_cells, CELLX, CELLY, Vector2, Rect, MouseKey, \
+        check_collision
 from .logging import create_logger
 from .exceptions import StatusCode, Exit
 
@@ -60,28 +62,11 @@ class GameObject(Renderable):
         else:
             self._size = Size(size)
 
-    def on_collision_entered(self, collision=None):
-        pass
-
-    def on_collision_exited(self, collision=None):
+    def on_collided(self, other: Renderable=None):
         pass
 
     def destroy(self):
         self.being_destroyed = True
-
-    def expand(self):
-        value = min(
-            self.get_size().value + 2,
-            Size.MaxSize.value
-        )
-        self.set_size(value)
-
-    def shrink(self):
-        value = max(
-            self.get_size().value - 2,
-            Size.MinSize.value
-        )
-        self.set_size(value)
 
 
 class Angle(enum.IntEnum):
@@ -127,6 +112,15 @@ class Map(Renderable):
     def shape(self) -> Shape:
         return None
 
+    def make_cells(self) -> List[Cell]:
+        cells = []
+        for y, line in enumerate(self.data):
+            for x, c in enumerate(line):
+                if c == '*':
+                    cell = Cell(x=x, y=y, fg=Color.White, c=ord(c))
+                    cells.append(cell)
+        return cells
+
     def load(self, mapfile: pathlib.Path):
         with open(str(mapfile)) as f:
             for line in f:
@@ -137,15 +131,6 @@ class Map(Renderable):
         self._lb = Vector2(0, len(self.data))
         self._rt = Vector2(len(self.data[0]), 0)
         self._rb = Vector2(len(self.data[0]), len(self.data))
-
-    def render(self, tm=None, dx=0, dy=0):
-        cells = []
-        for y, line in enumerate(self.data):
-            for x, c in enumerate(line):
-                cell = Cell(x=x-dx, y=y-dy, fg=Color.White, c=ord(c))
-                cells.append(cell)
-
-        render_cells(tm, cells)
 
     def intersectd_with(self, pos: Vector2=None, rect: Rect=None):
         """
@@ -235,19 +220,21 @@ class Tetrimino(GameObject):
         self.angle: Angle = angle
         self.rotate: Callable = None
 
+    def on_collided(self, other: Renderable=None):
+        logger.debug(f'Collided with {other}.')
+
     def get_shape(self):
         return Shape.Square.value
 
     def set_rotate(self, f: Callable) -> None:
         self.rotate = f
 
-    def render(self, tm: 'Terminal'=None, dx: float=0, dy: float=0,
-               check_intersect: bool=True):
+    def make_cells(self) -> List[Cell]:
         blocks = self.make_blocks()
         if self.rotate:
             blocks = self.rotate(blocks)
         cells = list(itertools.chain(*[b.cells for b in blocks]))
-        render_cells(tm, cells)
+        return cells
 
     @abc.abstractmethod
     def make_blocks(self) -> List[Block]:
@@ -363,20 +350,15 @@ class Game:
         self.map: Map = Map()
         self.map.load(mapdir / 'map.txt')
         self.player: GameObject = None
+        self.last_second: datetime.datetime = now()
 
         def terminal_on_shutdown():
             raise Exit()
         self.terminal.on_shutdown = terminal_on_shutdown
-
-        def move(key, dx: float, dy: float):
-            for obj in [self.player]:
-                obj.pos.x += dx
-                obj.pos.y += dy
-            self.terminal.update(now(), *self.objects)
-
-        self.terminal.set_keydown_handler(MouseKey.Left, functools.partial(move, dx=-0.2, dy=0.0))
-        self.terminal.set_keydown_handler(MouseKey.Right, functools.partial(move, dx=0.2, dy=0.0))
-        self.terminal.set_keydown_handler(MouseKey.Down, functools.partial(move, dx=0.0, dy=0.2))
+        self.terminal.set_keydown_handler(MouseKey.Left, lambda k: self.move(dx=-1, dy=0.0))
+        self.terminal.set_keydown_handler(MouseKey.Right, lambda k: self.move(dx=1, dy=0.0))
+        self.terminal.set_keydown_handler(MouseKey.Up, lambda k: self.move(dx=0.0, dy=-1))
+        self.terminal.set_keydown_handler(MouseKey.Down, lambda k: self.move(dx=0.0, dy=1))
 
         current_rotate = 0
 
@@ -453,9 +435,7 @@ class Game:
         """
         try:
             while True:
-                now = time.time() * 1000
-
-                self.update(now)
+                self.update(now())
                 time.sleep(1 / FPS)
 
         except Exit as e:
@@ -469,6 +449,16 @@ class Game:
 
         return 0
 
+    def move(self, dx: float, dy: float):
+        orig = copy.copy(self.player.pos)
+        self.player.pos.x += dx
+        self.player.pos.y += dy
+        for obj in itertools.chain([self.map], self.objects):  # type: ignore
+            if check_collision(self.player, obj):
+                self.player.pos = orig
+                return
+        self.terminal.update(now(), *self.objects)
+
     def add(self, obj: GameObject):
         """
         Add game object to the game.
@@ -481,12 +471,23 @@ class Game:
         """
         self.player = obj
 
-    def update(self, now):
+    def update(self, now: datetime.datetime):
         """
         Update terminal and game objects.
         """
-        for obj in itertools.chain([self.player], self.objects):
-            obj.pos.y += 0.025
+        # Gravity 1.0 point per second.
+        if (now - self.last_second).seconds >= 1:
+            self.last_second = now
+            self.move(dx=0.0, dy=1)
         self.terminal.update(now, self.map, self.player, *self.objects)
+        self.update_collision(now)
 
-        # Update collision
+    def update_collision(self, now: datetime.datetime) -> None:
+        def collided(obj: Renderable, other: Renderable):
+            if isinstance(obj, GameObject):
+                obj.on_collided(other)
+
+        for obj in itertools.chain([self.map], self.objects):  # type: ignore
+            if check_collision(self.player, obj):
+                collided(self.player, obj)
+                collided(obj, self.player)

@@ -144,8 +144,8 @@ class Cell:
     Cell object.
     """
     def __init__(self, x: int=None, y: int=None, fg: Color=None,
-                 bg: Color=None, c: Shape=None) -> None:
-        self.c: Shape = c or Shape.Default.value
+                 bg: Color=None, c: int=None) -> None:
+        self.c: int = c or Shape.Default.value
         self.x: int = x
         self.y: int = y
         self.fg: Color = fg or Color.Default
@@ -183,7 +183,7 @@ def render_objects(tm: 'Terminal', objects: List['Renderable']):
         o.render(tm)
 
 
-def render_cells(tm: 'Terminal', cells: List[Cell]):
+def render_cells(tm: 'Terminal', cells: List[Cell]) -> None:
     """
     Render cells in terminal.
     """
@@ -191,6 +191,20 @@ def render_cells(tm: 'Terminal', cells: List[Cell]):
         raise RuntimeError('Null termbox')
     for cell in cells:
         tm.tb.change_cell(cell.x, cell.y, cell.c, cell.fg, cell.bg)
+
+
+def check_collision(a: 'Renderable', b: 'Renderable') -> bool:
+    """
+    True if two objects are being collided, False otherwise.
+    """
+    acells = a.make_cells()
+    bcells = b.make_cells()
+    for i, ac in enumerate(acells):
+        for j, bc in enumerate(bcells):
+            # logger.debug(f'{i}-{j} {ac.x}, {bc.x}, {ac.y} {bc.y}')
+            if ac.x == bc.x and ac.y == bc.y:
+                return True
+    return False
 
 
 class Renderable:
@@ -208,49 +222,11 @@ class Renderable:
         self.direction: Dir = None
 
     def render(self, tm: 'Terminal'=None, dx: int=0, dy: int=0,
-               check_intersect: bool=True):
+               check_intersect: bool=True) -> None:
         """
         Render object.
         """
-        pos = self.get_pos()
-        if not pos:
-            logger.debug('Null pos.')
-            return
-        fg, bg = self.get_color()
-        rect = self.get_rect()
-        left = int(rect.x1)
-        right = int(rect.x2)
-        bottom = int(rect.y1)
-        top = int(rect.y2)
-
-        """
-        if self.direction:
-            trajectory = self.make_trajectory(rect=rect)
-            #logger.debug('dir:{}, trajectory:{}'.format(
-                          self.direction, str(trajectory)))
-        else:
-            trajectory = rect
-        if check_intersect and tm.map.intersectd_with(rect=trajectory):
-            self.pos = self.prev_pos or self.pos
-            self.render(tm, dx, dy, check_intersect=False)
-        """
-
-        cells = []
-        for y in range(bottom, top+1):
-            for x in range(left, right+1):
-                cell = Cell(x=x-dx, y=y-dy, fg=fg, bg=bg, c=self.shape)
-                cells.append(cell)
-        if tm.debug:
-            x = right + 1
-            y = bottom + 1
-            coord = "xy({},{}),w={},y={},rect={}".format(
-                x, y, self.width, self.height, rect)
-            for c in coord:
-                cell = Cell(x=x-dx, y=y-dy, fg=fg, c=Shape(ord(c)))
-                cells.append(cell)
-                x += 1
-
-        render_cells(tm, cells)
+        render_cells(tm, self.make_cells())
 
     def move(self, direction: Dir=None, pos: Vector2=None):
         self.prev_direction = self.direction
@@ -278,39 +254,9 @@ class Renderable:
         top = pos.y + diameter.y
         return Rect(x1=left, y1=bottom, x2=right, y2=top)
 
-    def make_trajectory(self, rect=None):
-        rect = rect or self.get_rect()
-        if self.direction == Dir.Left:
-            trajectory = Rect(
-                x1=rect.x1,
-                y1=rect.y1,
-                x2=rect.x2-Dir.Left.value.x,
-                y2=rect.y2,
-            )
-        elif self.direction == Dir.Right:
-            trajectory = Rect(
-                x1=rect.x1-Dir.Right.value.x,
-                y1=rect.y1,
-                x2=rect.x2,
-                y2=rect.y2,
-            )
-        elif self.direction == Dir.Up:
-            trajectory = Rect(
-                x1=rect.x1,
-                y1=rect.y1-Dir.Up.value.y,
-                x2=rect.x2,
-                y2=rect.y2,
-            )
-        elif self.direction == Dir.Down:
-            trajectory = Rect(
-                x1=rect.x1,
-                y1=rect.y1,
-                x2=rect.x2,
-                y2=rect.y2-Dir.Down.value.y,
-            )
-        else:
-            trajectory = rect
-        return trajectory
+    @abc.abstractmethod
+    def make_cells(self) -> List[Cell]:
+        pass
 
     @abc.abstractproperty
     def size(self) -> Size:
