@@ -1,5 +1,4 @@
 import abc
-import copy
 import enum
 import random
 import pathlib
@@ -75,70 +74,6 @@ class Vector2:
         return f'(x={self.x},y={self.y})'
 
 
-class Dir(enum.Enum):
-    Left = Vector2(-2, 0)
-    Right = Vector2(2, 0)
-    Up = Vector2(0, -1)
-    Down = Vector2(0, 1)
-
-
-class Rect:
-    """
-    Rectangle.
-    """
-    def __init__(self, x1: int=0, y1: int=0, x2: int=0, y2: int=0) -> None:
-        self.x1: int = x1
-        self.y1: int = y1
-        self.x2: int = x2
-        self.y2: int = y2
-
-    @property
-    def lb(self) -> Vector2:
-        """
-        Left bottom
-        """
-        return Vector2(self.x1, self.y1)
-
-    @property
-    def lt(self) -> Vector2:
-        """
-        Left top
-        """
-        return Vector2(self.x1, self.y2)
-
-    @property
-    def rb(self) -> Vector2:
-        """
-        Right bottom
-        """
-        return Vector2(self.x2, self.y1)
-
-    @property
-    def rt(self) -> Vector2:
-        """
-        Right top
-        """
-        return Vector2(self.x2, self.y2)
-
-    def get_pos(self) -> Vector2:
-        return self.get_center()
-
-    def get_center(self) -> Vector2:
-        return Vector2(self.x1 + (self.x2 - self.x1),
-                       self.y1 + (self.y2 - self.y1))
-
-    def get_width(self) -> int:
-        return abs(self.x2 - self.x1) + 1
-
-    @property
-    def height(self) -> int:
-        return abs(self.y2 - self.y1) + 1
-
-    def __repr__(self) -> str:
-        return (f'[Rect] lb={self.lb},lt={self.lt},rt={self.rt},rb={self.rb},'
-                f'w={self.get_width()},h={self.height}')
-
-
 class Cell:
     """
     Cell object.
@@ -151,22 +86,6 @@ class Cell:
         self.fg: Color = fg or Color.Default
         self.bg: Color = bg or Color.Default
         self.scale: bool = scale
-
-
-class Size(enum.IntEnum):
-    w1xh1 = 1
-    w2xh1 = 1
-    w3xh3 = 3
-    w5xh5 = 5
-    w7xh7 = 7
-    w9xh9 = 9
-    w11xh11 = 11
-    w13xh13 = 13
-    w15xh15 = 15
-    w17xh17 = 17
-    w19xh19 = 19
-    MinSize = w1xh1
-    MaxSize = w19xh19
 
 
 def render_objects(tm: 'Terminal', objects: List['Renderable']):
@@ -266,31 +185,8 @@ class Renderable:
     def get_pos(self) -> Vector2:
         return self.pos
 
-    def get_rect(self) -> Rect:
-        pos = self.get_pos()
-        size = self.size
-        diameter = Vector2(x=int((size - 1) / 2), y=int((size - 1) / 2))
-
-        left = pos.x - diameter.x
-        right = pos.x + diameter.x
-        bottom = pos.y - diameter.y
-        top = pos.y + diameter.y
-        return Rect(x1=left, y1=bottom, x2=right, y2=top)
-
     @abc.abstractmethod
     def make_cells(self) -> List[Cell]:
-        pass
-
-    @abc.abstractproperty
-    def size(self) -> Size:
-        return Size.w1xh1
-
-    @abc.abstractproperty
-    def width(self) -> int:
-        pass
-
-    @abc.abstractproperty
-    def height(self) -> int:
         pass
 
     @abc.abstractproperty
@@ -373,6 +269,7 @@ class Terminal:
 
     def __del__(self):
         logger.debug("deleting {}".format(self.tb))
+        self.close()
 
     def close(self):
         if self.tb:
@@ -413,15 +310,6 @@ class Terminal:
     @property
     def height(self):
         return self.tb.height()
-
-    @property
-    def boundary(self) -> Rect:
-        return Rect(x1=0, y1=0, x2=self.width, y2=self.height)
-
-    def center(self):
-        x = int(self.width / 2)
-        y = int(self.height / 2)
-        return Vector2(x, y)
 
     def clear(self):
         """

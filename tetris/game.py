@@ -1,16 +1,12 @@
 import abc
-import copy
 import collections
 import datetime
-import enum
-import functools
-import itertools
 import time
 import traceback
 import pathlib
 import random
 from typing import List, Dict, Tuple, Callable, Any
-from .terminal import Terminal, Renderable, Cell, Color, Size, \
+from .terminal import Terminal, Renderable, Cell, Color, \
         Shape, render_cells, SCALEX, SCALEY, Vector2, MouseKey, \
         check_collision, rotate_cells
 from .logging import create_logger
@@ -20,8 +16,6 @@ from .exceptions import StatusCode, Exit
 FPS = 40  # Game FPS (Frame Per Second)
 
 DEFAULT_COLOR = Color.White
-
-DEFAULT_SIZE = Size.w3xh3
 
 basedir = pathlib.Path(__file__).parent
 
@@ -57,26 +51,6 @@ class GameObject(Renderable):
         self.collisions: Dict = {}
         self.being_destroyed = False
         self.set_color(fg=DEFAULT_COLOR, bg=DEFAULT_COLOR)
-        self.size = DEFAULT_SIZE
-
-    @property
-    def width(self) -> int:
-        return self.size.value
-
-    @property
-    def height(self) -> int:
-        pass
-
-    @property
-    def size(self) -> Size:
-        return self._size
-
-    @size.setter
-    def size(self, size) -> None:
-        if isinstance(size, Size):
-            self._size = size
-        else:
-            self._size = Size(size)
 
     def on_collided(self, col: Collision) -> None:
         pass
@@ -86,11 +60,14 @@ class GameObject(Renderable):
 
 
 class FieldInfo:
-    def __init__(self, x: int, y: int, obj: GameObject=None) -> None:
+    def __init__(self, x: int, y: int,
+                 obj: GameObject=None, cell: Cell=None) -> None:
         self.x = x
         self.y = y
         self.obj = obj
         self.oid = id(self.obj)
+        self.cell = cell
+
 
 class Field:
 
@@ -165,10 +142,6 @@ class Map(Renderable):
         self._cells: List[Cell] = None
 
     @property
-    def size(self) -> Size:
-        return Size.w1xh1
-
-    @property
     def width(self) -> int:
         return self._width
 
@@ -207,7 +180,7 @@ class Map(Renderable):
 
 class Tetrimino(GameObject):
     """
-    A block in Tetoris called Tetrimino.
+    Tetrimino - Blocks in Tetoris.
     """
     __metaclass__ = abc.ABCMeta
 
@@ -220,7 +193,8 @@ class Tetrimino(GameObject):
         if col.dy is not None and col.dy > 0 and isinstance(self.parent, Game):
             self.parent.will_spawn = True
 
-    def get_shape(self):
+    @property
+    def shape(self) -> Shape:
         return Shape.Square.value
 
     def rotate(self) -> None:
@@ -232,18 +206,6 @@ class Tetrimino(GameObject):
             cell.y += dy
 
     def make_cells(self) -> List[Cell]:
-        # collision = False
-        #if self.rotate:
-        #    rotated = self.rotate(self.cells)
-            # for b in blocks_:
-            #     for obj in self.parent.objects:
-            #         if check_collision(b, obj):
-            #             collision = True
-            #             break
-            #     if collision:
-            #         break
-            # if not collision:
-            #     blocks = blocks_
         return self.cells
 
 
@@ -383,8 +345,8 @@ class Game:
         return 0
 
     def spawn(self) -> None:
-        tetriminos = [ITetrimino, OTetrimino, STetrimino, TTetrimino, LTetrimino]
-        # tetriminos = [TTetrimino]
+        tetriminos = [ITetrimino, OTetrimino, STetrimino,
+                      TTetrimino, LTetrimino]
         colors = [Color.White, Color.Red, Color.Green, Color.Yellow,
                   Color.Blue, Color.Magenta, Color.Cyan]
         cls = random.choice(tetriminos)
