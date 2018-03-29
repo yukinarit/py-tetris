@@ -14,7 +14,7 @@ def run():
 
     try:
         with Game() as game:
-            game.add_player(ITetrimino(x=4, y=1))
+            game.add_player(TTetrimino(x=4, y=1))
             game.run()
 
     except Exit as e:

@@ -11,8 +11,8 @@ import pathlib
 import random
 from typing import List, Dict, Tuple, Callable, Any
 from .terminal import Terminal, Renderable, Cell, Color, Size, \
-        Shape, render_cells, CELLX, CELLY, Vector2, Rect, MouseKey, \
-        check_collision
+        Shape, render_cells, SCALEX, SCALEY, Vector2, MouseKey, \
+        check_collision, rotate_cells
 from .logging import create_logger
 from .exceptions import StatusCode, Exit
 
@@ -34,13 +34,13 @@ def now() -> datetime.datetime:
     return datetime.datetime.now()
 
 
-def collided(obj: Renderable, other: Renderable, dx: float=None, dy: float=None):
+def collided(obj: Renderable, other: Renderable, dx: int=None, dy: int=None):
     if isinstance(obj, GameObject):
         obj.on_collided(Collision(other, dx, dy))
 
 
 class Collision:
-    def __init__(self, other: Renderable, dx: float=None, dy: float=None) -> None:
+    def __init__(self, other: Renderable, dx: int=None, dy: int=None) -> None:
         self.other = other
         self.dx = dx
         self.dy = dy
@@ -85,22 +85,6 @@ class GameObject(Renderable):
         self.being_destroyed = True
 
 
-class Angle(enum.IntEnum):
-    A0 = enum.auto()
-    A90 = enum.auto()
-    A270 = enum.auto()
-
-
-class BlockCoordinate:
-    @staticmethod
-    def translate_to_cell(x, y):
-        return x * CELLX, y * CELLY
-
-    @staticmethod
-    def translate_to_block(self, x, y):
-        return int(x / CELLX), int(y / CELLY)
-
-
 class FieldInfo:
     def __init__(self, x: int, y: int, obj: GameObject=None) -> None:
         self.x = x
@@ -117,15 +101,11 @@ class Field:
         self.positions: Dict[int, List[FieldInfo]] = collections.defaultdict(list)
 
     def update(self, x: int, y: int, obj: GameObject):
-        x = int(x)
-        y = int(y)
         finfo = FieldInfo(x, y, obj)
         self.data[x][y] = finfo
         self.positions[id(obj)].append(finfo)
 
     def get(self, x: int, y: int) -> FieldInfo:
-        x = int(x)
-        y = int(y)
         try:
             return self.data[x][y]
         except KeyError:
@@ -210,7 +190,7 @@ class Map(Renderable):
         for y, line in enumerate(self.data):
             for x, c in enumerate(line):
                 if c == '*':
-                    cell = Cell(x=x, y=y, fg=Color.White, c=ord(c))
+                    cell = Cell(x=x, y=y, fg=Color.White, c=ord(c), scale=False)
                     cells.append(cell)
         self._cells = cells
         return cells
@@ -225,32 +205,16 @@ class Map(Renderable):
         self.field = Field(self.width, self.height)
 
 
-class Block(Renderable):
-    """
-    A piece of tetrimino.
-    """
-    def __init__(self, x: float, y: float, fg: Color, bg: Color) -> None:
-        self.x = x
-        self.y = y
-        self.fg = fg
-        self.bg = bg
-
-    def make_cells(self) -> List[Cell]:
-        x, y = BlockCoordinate.translate_to_cell(self.x, self.y)
-        return [Cell(x+n, y, self.fg, self.bg) for n in range(0, CELLX)]
-
-
 class Tetrimino(GameObject):
     """
     A block in Tetoris called Tetrimino.
     """
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, angle: Angle, bg: Color=Color.White, *args, **kwargs) -> None:
+    def __init__(self, bg: Color=Color.White, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.angle: Angle = angle
-        self.rotate: Callable = None
         self.bg = bg
+        self.cells: List[Cell] = []
 
     def on_collided(self, col: Collision) -> None:
         if col.dy is not None and col.dy > 0 and isinstance(self.parent, Game):
@@ -259,14 +223,18 @@ class Tetrimino(GameObject):
     def get_shape(self):
         return Shape.Square.value
 
-    def set_rotate(self, f: Callable) -> None:
-        self.rotate = f
+    def rotate(self) -> None:
+        self.cells = rotate_cells(self.cells)
+
+    def move(self, dx: int, dy: int) -> None:
+        for cell in self.cells:
+            cell.x += dx
+            cell.y += dy
 
     def make_cells(self) -> List[Cell]:
-        blocks = self.make_blocks()
-        collision = False
-        if self.rotate:
-            blocks_ = self.rotate(blocks)
+        # collision = False
+        #if self.rotate:
+        #    rotated = self.rotate(self.cells)
             # for b in blocks_:
             #     for obj in self.parent.objects:
             #         if check_collision(b, obj):
@@ -274,14 +242,9 @@ class Tetrimino(GameObject):
             #             break
             #     if collision:
             #         break
-            if not collision:
-                blocks = blocks_
-        cells = list(itertools.chain(*[b.make_cells() for b in blocks]))
-        return cells
-
-    @abc.abstractmethod
-    def make_blocks(self) -> List[Block]:
-        pass
+            # if not collision:
+            #     blocks = blocks_
+        return self.cells
 
 
 class ITetrimino(Tetrimino):
@@ -290,17 +253,14 @@ class ITetrimino(Tetrimino):
     ■ ■ ■ ■
     """
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__(Angle.A0, *args, **kwargs)
-
-    def make_blocks(self) -> List[Block]:
+        super().__init__(*args, **kwargs)
         x = self.get_pos().x
         y = self.get_pos().y
         fg, bg = self.get_color()
-        return [
-            Block(x, y, fg, bg),
-            Block(x+1, y, fg, bg),
-            Block(x+2, y, fg, bg),
-            Block(x+3, y, fg, bg)]
+        self.cells = [Cell(x, y, fg, bg),
+                      Cell(x+1, y, fg, bg),
+                      Cell(x+2, y, fg, bg),
+                      Cell(x+3, y, fg, bg)]
 
 
 class OTetrimino(Tetrimino):
@@ -310,17 +270,14 @@ class OTetrimino(Tetrimino):
     ■ ■
     """
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__(Angle.A0, *args, **kwargs)
-
-    def make_blocks(self) -> List[Block]:
+        super().__init__(*args, **kwargs)
         x = self.get_pos().x
         y = self.get_pos().y
         fg, bg = self.get_color()
-        return [
-            Block(x, y, fg, bg),
-            Block(x+1, y, fg, bg),
-            Block(x, y+1, fg, bg),
-            Block(x+1, y+1, fg, bg)]
+        self.cells = [Cell(x, y, fg, bg),
+                      Cell(x+1, y, fg, bg),
+                      Cell(x, y+1, fg, bg),
+                      Cell(x+1, y+1, fg, bg)]
 
 
 class STetrimino(Tetrimino):
@@ -330,17 +287,14 @@ class STetrimino(Tetrimino):
     ■ ■
     """
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__(Angle.A0, *args, **kwargs)
-
-    def make_blocks(self) -> List[Block]:
+        super().__init__(*args, **kwargs)
         x = self.get_pos().x
         y = self.get_pos().y
         fg, bg = self.get_color()
-        return [
-            Block(x, y, fg, bg),
-            Block(x+1, y, fg, bg),
-            Block(x+1, y+1, fg, bg),
-            Block(x+2, y+1, fg, bg)]
+        self.cells = [Cell(x, y, fg, bg),
+                      Cell(x+1, y, fg, bg),
+                      Cell(x+1, y+1, fg, bg),
+                      Cell(x+2, y+1, fg, bg)]
 
 
 class LTetrimino(Tetrimino):
@@ -350,17 +304,14 @@ class LTetrimino(Tetrimino):
     ■ ■ ■
     """
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__(Angle.A0, *args, **kwargs)
-
-    def make_blocks(self) -> List[Block]:
+        super().__init__(*args, **kwargs)
         x = self.get_pos().x
         y = self.get_pos().y
         fg, bg = self.get_color()
-        return [
-            Block(x, y, fg, bg),
-            Block(x+1, y, fg, bg),
-            Block(x+2, y, fg, bg),
-            Block(x+2, y+1, fg, bg)]
+        self.cells = [Cell(x, y, fg, bg),
+                      Cell(x+1, y, fg, bg),
+                      Cell(x+2, y, fg, bg),
+                      Cell(x+2, y+1, fg, bg)]
 
 
 class TTetrimino(Tetrimino):
@@ -370,17 +321,14 @@ class TTetrimino(Tetrimino):
     ■ ■ ■
     """
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__(Angle.A0, *args, **kwargs)
-
-    def make_blocks(self) -> List[Block]:
+        super().__init__(*args, **kwargs)
         x = self.get_pos().x
         y = self.get_pos().y
         fg, bg = self.get_color()
-        return [
-            Block(x, y, fg, bg),
-            Block(x+1, y, fg, bg),
-            Block(x+1, y+1, fg, bg),
-            Block(x+2, y, fg, bg)]
+        self.cells = [Cell(x+1, y, fg, bg),
+                      Cell(x, y, fg, bg),
+                      Cell(x+1, y+1, fg, bg),
+                      Cell(x+2, y, fg, bg)]
 
 
 class Game:
@@ -404,69 +352,7 @@ class Game:
         self.terminal.set_keydown_handler(MouseKey.Right, lambda k: self.move(dx=1, dy=0.0))
         self.terminal.set_keydown_handler(MouseKey.Up, lambda k: self.move(dx=0.0, dy=-1))
         self.terminal.set_keydown_handler(MouseKey.Down, lambda k: self.move(dx=0.0, dy=1))
-
-        current_rotate = 0
-
-        def rotate(key):
-            nonlocal current_rotate
-
-            def rotate0(blocks):
-                first = blocks[0]
-                for n, b in enumerate(blocks):
-                    if b is first:
-                        continue
-                    dx = 0
-                    dy = 0
-                    # logger.debug(f'Rotating90 n={n}, dx={dx},dy={dy}')
-                return blocks
-
-            def rotate90(blocks):
-                first = blocks[0]
-                for n, b in enumerate(blocks):
-                    if b is first:
-                        continue
-                    dx = abs(b.x - first.x)
-                    dy = abs(b.y - first.y)
-                    b.x = first.x - dy
-                    b.y = first.y - dx
-                    # logger.debug(f'Rotating90 n={n}, dx={dx},dy={dy}')
-                return blocks
-
-            def rotate180(blocks):
-                first = blocks[0]
-                for n, b in enumerate(blocks):
-                    if b is first:
-                        continue
-                    dy = 0
-                    dx = abs(b.x - first.x)
-                    b.x = first.x - dx
-                    # logger.debug(f'Rotating180 n={n}, dx={dx},dy={dy}')
-                return blocks
-
-            def rotate270(blocks):
-                first = blocks[0]
-                for n, b in enumerate(blocks):
-                    if b is first:
-                        continue
-                    dx = abs(b.x - first.x)
-                    dy = abs(b.y - first.y)
-                    b.x = first.x - dy
-                    b.y = first.y + dx
-                    # logger.debug(f'Rotating270 n={n}, dx={dx},dy={dy}')
-                return blocks
-            rotates = [rotate90, rotate180, rotate270, rotate0]
-
-            for obj in [self.player]:
-                if hasattr(obj, 'pos'):
-                    logger.debug(f'current_rotate: {current_rotate}')
-                    obj.set_rotate(rotates[current_rotate])
-
-            current_rotate += 1
-            if current_rotate >= len(rotates):
-                current_rotate = 0
-
-            self.terminal.update(now(), self.player, *self.objects)
-        self.terminal.set_keydown_handler(MouseKey.Enter, rotate)
+        self.terminal.set_keydown_handler(MouseKey.Enter, lambda k: self.player.rotate())
 
     def __enter__(self):
         return self
@@ -497,30 +383,28 @@ class Game:
         return 0
 
     def spawn(self) -> None:
-        # tetriminos = [ITetrimino, OTetrimino, STetrimino, TTetrimino, LTetrimino]
-        tetriminos = [ITetrimino]
+        tetriminos = [ITetrimino, OTetrimino, STetrimino, TTetrimino, LTetrimino]
+        # tetriminos = [TTetrimino]
         colors = [Color.White, Color.Red, Color.Green, Color.Yellow,
                   Color.Blue, Color.Magenta, Color.Cyan]
         cls = random.choice(tetriminos)
         self.add(self.player)
         self.add_player(cls(x=4, y=1, bg=random.choice(colors)))
 
-    def move(self, dx: float, dy: float):
-        orig = copy.copy(self.player.pos)
-        self.player.pos.x += dx
-        self.player.pos.y += dy
+    def move(self, dx: int, dy: int):
+        self.player.move(dx, dy)
         for obj in self.objects:  # type: ignore
             if check_collision(self.player, obj):
                 collided(self.player, obj, dx, dy)
                 collided(obj, self.player)
-                self.player.pos = orig
+                self.player.move(-dx, -dy)
                 return
 
-        obj_id = id(self.player)
-        self.map.field.remove_by(obj_id)
-        for b in self.player.make_blocks():
-            for c in b.make_cells():
-                self.map.field.update(c.x, c.y, self.player)
+        # obj_id = id(self.player)
+        # self.map.field.remove_by(obj_id)
+        # for b in self.player.make_blocks():
+        #     for c in b.make_cells():
+        #         self.map.field.update(c.x, c.y, self.player)
         self.terminal.update(now(), *self.objects)
 
     def add(self, obj: GameObject):
@@ -544,9 +428,9 @@ class Game:
         # Gravity 1.0 point per second.
         if (now - self.last_second).seconds >= 1:
             self.last_second = now
-            self.move(dx=0.0, dy=1)
+            self.move(dx=0, dy=1)
             self.check_tetris()
-            self.map.field.debug_print()
+            # self.map.field.debug_print()
         self.terminal.update(now, self.player, *self.objects)
 
     def check_tetris(self) -> None:

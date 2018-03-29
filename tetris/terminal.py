@@ -3,7 +3,7 @@ import copy
 import enum
 import random
 import pathlib
-from typing import List, Tuple, Dict, Callable
+from typing import List, Tuple, Dict, Union, Callable
 from termbox import (DEFAULT, BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN,  # type: ignore
     WHITE, KEY_ESC, KEY_ARROW_UP, KEY_ARROW_DOWN, KEY_ARROW_LEFT, KEY_ENTER,
     KEY_ARROW_RIGHT, Termbox)
@@ -17,9 +17,9 @@ DEFAULT_SQUARE = 0x0020
 
 DEFAULT_COLOR = DEFAULT
 
-CELLX = 2
+SCALEX = 2
 
-CELLY = 1
+SCALEY = 1
 
 logger = create_logger('term')
 
@@ -58,9 +58,9 @@ class Vector2:
     """
     Vector 2D class.
     """
-    def __init__(self, x: float=None, y: float=None) -> None:
-        self.x: float = x
-        self.y: float = y
+    def __init__(self, x: int=None, y: int=None) -> None:
+        self.x: int = x
+        self.y: int = y
 
     def __add__(self, other) -> 'Vector2':
         return Vector2(self.x + other.x, self.y + other.y)
@@ -86,11 +86,11 @@ class Rect:
     """
     Rectangle.
     """
-    def __init__(self, x1: float=0, y1: float=0, x2: float=0, y2: float=0) -> None:
-        self.x1: float = x1
-        self.y1: float = y1
-        self.x2: float = x2
-        self.y2: float = y2
+    def __init__(self, x1: int=0, y1: int=0, x2: int=0, y2: int=0) -> None:
+        self.x1: int = x1
+        self.y1: int = y1
+        self.x2: int = x2
+        self.y2: int = y2
 
     @property
     def lb(self) -> Vector2:
@@ -127,11 +127,11 @@ class Rect:
         return Vector2(self.x1 + (self.x2 - self.x1),
                        self.y1 + (self.y2 - self.y1))
 
-    def get_width(self) -> float:
+    def get_width(self) -> int:
         return abs(self.x2 - self.x1) + 1
 
     @property
-    def height(self) -> float:
+    def height(self) -> int:
         return abs(self.y2 - self.y1) + 1
 
     def __repr__(self) -> str:
@@ -144,12 +144,13 @@ class Cell:
     Cell object.
     """
     def __init__(self, x: int=None, y: int=None, fg: Color=None,
-                 bg: Color=None, c: int=None) -> None:
+                 bg: Color=None, c: int=None, scale: bool=True) -> None:
         self.c: int = c or Shape.Default.value
         self.x: int = x
         self.y: int = y
         self.fg: Color = fg or Color.Default
         self.bg: Color = bg or Color.Default
+        self.scale: bool = scale
 
 
 class Size(enum.IntEnum):
@@ -190,15 +191,50 @@ def render_cells(tm: 'Terminal', cells: List[Cell]) -> None:
     if not tm.tb:
         raise RuntimeError('Null termbox')
     for cell in cells:
-        tm.tb.change_cell(cell.x, cell.y, cell.c, cell.fg, cell.bg)
+        for scaled in scale_cells(cell):
+            tm.tb.change_cell(scaled.x, scaled.y, scaled.c, scaled.fg, scaled.bg)
+
+
+def scale_cells(cells: Union[Cell, List[Cell]]) -> List[Cell]:
+    if isinstance(cells, Cell):
+         cells = [cells]
+
+    scaled: List[Cell] = []
+
+    for cell in cells:
+        if cell.scale:
+            scalex = SCALEX
+            scaley = SCALEY
+        else:
+            scalex = 1
+            scaley = 1
+        for sx in range(scalex):
+            for sy in range(scaley):
+                scaled.append(Cell(cell.x*scalex+sx, cell.y*scaley+sy, cell.fg, cell.bg, cell.c, scale=False))
+    return scaled
+
+
+
+def rotate_cells(cells: Union[Cell, List[Cell]]) -> List[Cell]:
+    if isinstance(cells, Cell):
+        return [cells]
+    first = cells[0]
+    for n, c in enumerate(cells):
+        if c is first:
+            continue
+        dx = c.x - first.x
+        dy = c.y - first.y
+        c.x = first.x + dy
+        c.y = first.y - dx
+    return cells
 
 
 def check_collision(a: 'Renderable', b: 'Renderable') -> bool:
     """
     True if two objects are being collided, False otherwise.
     """
-    acells = a.make_cells()
-    bcells = b.make_cells()
+    acells = scale_cells(a.make_cells())
+    bcells = scale_cells(b.make_cells())
     for ac in acells:
         for bc in bcells:
             if ac.x == bc.x and ac.y == bc.y:
