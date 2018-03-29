@@ -87,6 +87,9 @@ class Cell:
         self.bg: Color = bg or Color.Default
         self.scale: bool = scale
 
+    def __repr__(self) -> str:
+        return f'Cell: x={self.x},y={self.y},c={self.c}'
+
 
 def render_objects(tm: 'Terminal', objects: List['Renderable']):
     """
@@ -152,6 +155,8 @@ def check_collision(a: 'Renderable', b: 'Renderable') -> bool:
     """
     True if two objects are being collided, False otherwise.
     """
+    if a is b:
+        return False
     acells = scale_cells(a.make_cells())
     bcells = scale_cells(b.make_cells())
     for ac in acells:
@@ -172,8 +177,6 @@ class Renderable:
         self.prev_pos: Vector2 = None
         self.fg: Color = None
         self.bg: Color = None
-        self.prev_direction: Dir = None
-        self.direction: Dir = None
 
     def render(self, tm: 'Terminal'=None, dx: int=0, dy: int=0,
                check_intersect: bool=True) -> None:

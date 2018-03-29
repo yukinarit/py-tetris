@@ -3,8 +3,7 @@ import traceback
 from .logging import setup_logger, Level
 from .terminal import logger as term_logger
 from .game import Game, ITetrimino, OTetrimino, STetrimino, LTetrimino, \
-    TTetrimino, Exit, \
-    logger as game_logger
+    TTetrimino, Exit, Color, logger as game_logger
 
 
 def run():
@@ -14,7 +13,7 @@ def run():
 
     try:
         with Game() as game:
-            game.add_player(TTetrimino(x=4, y=1))
+            game.add_player(TTetrimino(x=4, y=1, bg=Color.Red))
             game.run()
 
     except Exit as e:
