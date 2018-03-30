@@ -2,7 +2,7 @@ import sys
 import traceback
 from .logging import setup_logger, Level
 from .terminal import logger as term_logger
-from .game import Game, TTetrimino, Exit, Color, logger as game_logger
+from .game import Game, Exit, logger as game_logger
 
 
 def run():
@@ -12,7 +12,6 @@ def run():
 
     try:
         with Game() as game:
-            game.add_player(TTetrimino(x=4, y=1, bg=Color.Red))
             game.run()
 
     except Exit as e:

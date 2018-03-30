@@ -163,6 +163,8 @@ def check_collision(a: 'Renderable', b: 'Renderable') -> bool:
     """
     if a is b:
         return False
+    if not a.collidable or not b.collidable:
+        return False
     acells = scale_cells(a.make_cells())
     bcells = scale_cells(b.make_cells())
     for ac in acells:
@@ -183,6 +185,7 @@ class Renderable:
         self.prev_pos: Vector2 = None
         self.fg: Color = None
         self.bg: Color = None
+        self.collidable = True
 
     def render(self, tm: 'Terminal'=None, dx: int=0, dy: int=0,
                check_intersect: bool=True) -> None:

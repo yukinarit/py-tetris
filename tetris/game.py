@@ -46,18 +46,14 @@ class GameObject(Renderable):
     """
     def __init__(self) -> None:
         super().__init__()
+        self.gravity = True
         self.parent: Any = None
         self.children: List['GameObject'] = None
-        self.collisions: Dict = {}
-        self.being_destroyed = False
         self.set_color(fg=DEFAULT_COLOR, bg=DEFAULT_COLOR)
         self.cells: List[Cell] = []
 
     def on_collided(self, col: Collision) -> None:
         pass
-
-    def destroy(self):
-        self.being_destroyed = True
 
     def move(self, dx: int, dy: int) -> None:
         pass
@@ -252,6 +248,7 @@ class Tetrimino(GameObject):
 
     def on_collided(self, col: Collision) -> None:
         if col.dy is not None and col.dy > 0 and self is self.parent.player:
+            self.parent.check_tetris()
             self.parent.will_spawn = True
 
     @property
@@ -408,6 +405,7 @@ class Game:
         self.map.load(mapdir / 'map.txt')
         self.field = Field(self.map.width, self.map.height)
         self.field.update(self.map)
+        self.next_player: GameObject = None
         self.player: GameObject = None
         self.last_second: datetime.datetime = now()
         self.will_spawn = False
@@ -424,7 +422,6 @@ class Game:
         regist(MouseKey.Up, lambda k: self.move(self.player, dx=0, dy=-1))
         regist(MouseKey.Down, lambda k: self.move(self.player, dx=0, dy=1))
         regist(MouseKey.Enter, lambda k: self.player.rotate())
-        # regist(MouseKey.Space, lambda k: self.player.rotate(True))
 
     def __enter__(self):
         return self
@@ -436,12 +433,12 @@ class Game:
         """
         Run the Game loop.
         """
+        self.spawn()
         try:
             while True:
                 self.update(now())
                 if self.will_spawn:
                     self.spawn()
-                    self.will_spawn = False
                 time.sleep(1 / FPS)
 
         except Exit as e:
@@ -461,7 +458,10 @@ class Game:
                   Color.Blue, Color.Magenta, Color.Cyan]
         cls = random.choice(tetriminos)
         self.add(self.player)
-        self.add_player(cls(x=4, y=1, bg=random.choice(colors)))
+        self.add_player(cls(x=4, y=0, bg=random.choice(colors)))
+        self.will_spawn = False
+        if not self.player:
+            self.spawn()
 
     def move(self, obj: GameObject, dx: int, dy: int):
         obj.move(dx, dy)
@@ -478,6 +478,8 @@ class Game:
         """
         Add game object to the game.
         """
+        if not obj:
+            return
         obj.parent = self
         self.field.update(obj)
 
@@ -485,8 +487,17 @@ class Game:
         """
         Add player controllable game object to the game.
         """
-        self.player = obj
-        self.add(self.player)
+        if not obj:
+            return
+        self.player = self.next_player
+        if self.player:
+            self.player.gravity = True
+            self.player.collidable = True
+            self.move(self.player, dx=0, dy=1)
+        self.next_player = obj
+        self.next_player.gravity = False
+        self.next_player.collidable = False
+        self.add(self.next_player)
 
     def update(self, now: datetime.datetime):
         """
@@ -496,8 +507,8 @@ class Game:
         if (now - self.last_second).seconds >= 1:
             self.last_second = now
             for obj in self.field.children:
-                self.move(obj, dx=0, dy=1)
-            self.check_tetris()
+                if obj.gravity:
+                    self.move(obj, dx=0, dy=1)
             self.field.debug_print()
         self.terminal.update(now, *list(self.field.children))
 
