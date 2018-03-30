@@ -5,9 +5,9 @@ import time
 import traceback
 import pathlib
 import random
-from typing import List, Dict, Tuple, Callable, Any
+from typing import List, Dict, Any, Callable  # noqa
 from .terminal import Terminal, Renderable, Cell, Color, \
-        Shape, render_cells, SCALEX, SCALEY, Vector2, MouseKey, \
+        Shape, Vector2, MouseKey, \
         check_collision, rotate_cells
 from .logging import create_logger
 from .exceptions import StatusCode, Exit
@@ -60,6 +60,9 @@ class GameObject(Renderable):
         self.being_destroyed = True
 
     def move(self, dx: int, dy: int) -> None:
+        pass
+
+    def rotate(self) -> None:
         pass
 
     def remove(self, cell: Cell) -> None:
@@ -117,16 +120,11 @@ class Field:
     def update(self, obj: GameObject):
         self.remove(obj)
         for cell in obj.make_cells():
-            logger.debug(cell)
             x = cell.x
             y = cell.y
             finfo = FieldInfo(x, y, obj, cell)
-            logger.debug(f'adding to data {x} {y} {self.width} {self.height}')
             self.data[y][x] = finfo
-            logger.debug('adding to position')
             self.positions[id(obj)].append(finfo)
-            logger.debug('add done')
-        logger.debug('done')
 
     def get(self, x: int, y: int) -> FieldInfo:
         try:
@@ -235,13 +233,9 @@ class Map(GameObject):
         for y, line in enumerate(self.data):
             logger.debug(line)
             for x, c in enumerate(line):
-                logger.debug(f'append {x} {y} {c}')
                 if c == '*':
-                    logger.debug(f'append2 {x} {y} {c} {self.cells}')
-                    cell = Cell(x=x, y=y, bg=Color.White, c=Shape.Square.value, scale=True)
-                    logger.debug(f'append3 {x} {y} {c} {self.cells}')
+                    cell = Cell(x=x, y=y, bg=Color.White, c=Shape.Square.value)
                     self.cells.append(cell)
-                    logger.debug(f'append4 {x} {y} {c}')
         logger.debug('Map load END')
 
 
@@ -418,11 +412,14 @@ class Game:
         def terminal_on_shutdown():
             raise Exit()
         self.terminal.on_shutdown = terminal_on_shutdown
-        self.terminal.set_keydown_handler(MouseKey.Left, lambda k: self.move(self.player, dx=-1, dy=0))
-        self.terminal.set_keydown_handler(MouseKey.Right, lambda k: self.move(self.player, dx=1, dy=0))
-        self.terminal.set_keydown_handler(MouseKey.Up, lambda k: self.move(self.player, dx=0, dy=-1))
-        self.terminal.set_keydown_handler(MouseKey.Down, lambda k: self.move(self.player, dx=0, dy=1))
-        self.terminal.set_keydown_handler(MouseKey.Enter, lambda k: self.player.rotate())
+
+        def regist(key: MouseKey, f: Callable):
+            self.terminal.set_keydown_handler(key, f)
+        regist(MouseKey.Left, lambda k: self.move(self.player, dx=-1, dy=0))
+        regist(MouseKey.Right, lambda k: self.move(self.player, dx=1, dy=0))
+        regist(MouseKey.Up, lambda k: self.move(self.player, dx=0, dy=-1))
+        regist(MouseKey.Down, lambda k: self.move(self.player, dx=0, dy=1))
+        regist(MouseKey.Enter, lambda k: self.player.rotate())
 
     def __enter__(self):
         return self
@@ -497,10 +494,11 @@ class Game:
                 self.move(obj, dx=0, dy=1)
             self.check_tetris()
             self.field.debug_print()
-        self.terminal.update(now, self.player, self.map, *list(self.field.children))
+        self.terminal.update(now, *list(self.field.children))
 
     def check_tetris(self) -> None:
         for y in range(0, self.map.height):
             if self.field.check_filled(y=y):
-                logger.debug(f'The line is ({y}) filled with blocks. It is going to be deleted.')
+                logger.debug(f'The line is ({y}) filled with blocks.'
+                             f' It is going to be deleted.')
                 self.field.remove_line(y)

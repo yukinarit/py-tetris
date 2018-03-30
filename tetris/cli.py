@@ -2,8 +2,7 @@ import sys
 import traceback
 from .logging import setup_logger, Level
 from .terminal import logger as term_logger
-from .game import Game, ITetrimino, OTetrimino, STetrimino, LTetrimino, \
-    TTetrimino, Exit, Color, logger as game_logger
+from .game import Game, TTetrimino, Exit, Color, logger as game_logger
 
 
 def run():

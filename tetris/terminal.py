@@ -2,10 +2,11 @@ import abc
 import enum
 import random
 import pathlib
-from typing import List, Tuple, Dict, Union, Callable
-from termbox import (DEFAULT, BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN,  # type: ignore
-    WHITE, KEY_ESC, KEY_ARROW_UP, KEY_ARROW_DOWN, KEY_ARROW_LEFT, KEY_ENTER,
-    KEY_ARROW_RIGHT, Termbox)
+from typing import List, Dict, Tuple, Union, Callable  # noqa
+from termbox import (DEFAULT, BLACK, RED, GREEN, YELLOW, BLUE,  # type: ignore
+                     MAGENTA, CYAN, WHITE, KEY_ESC,
+                     KEY_ARROW_UP, KEY_ARROW_DOWN, KEY_ARROW_LEFT,
+                     KEY_ENTER, KEY_ARROW_RIGHT, Termbox)
 from .logging import create_logger
 from .exceptions import Exit
 
@@ -114,12 +115,13 @@ def render_cells(tm: 'Terminal', cells: List[Cell]) -> None:
         raise RuntimeError('Null termbox')
     for cell in cells:
         for scaled in scale_cells(cell):
-            tm.tb.change_cell(scaled.x, scaled.y, scaled.c, scaled.fg, scaled.bg)
+            tm.tb.change_cell(scaled.x, scaled.y,
+                              scaled.c, scaled.fg, scaled.bg)
 
 
 def scale_cells(cells: Union[Cell, List[Cell]]) -> List[Cell]:
     if isinstance(cells, Cell):
-         cells = [cells]
+        cells = [cells]
 
     scaled: List[Cell] = []
 
@@ -132,9 +134,9 @@ def scale_cells(cells: Union[Cell, List[Cell]]) -> List[Cell]:
             scaley = 1
         for sx in range(scalex):
             for sy in range(scaley):
-                scaled.append(Cell(cell.x*scalex+sx, cell.y*scaley+sy, cell.fg, cell.bg, cell.c, scale=False))
+                scaled.append(Cell(cell.x*scalex+sx, cell.y*scaley+sy,
+                                   cell.fg, cell.bg, cell.c, scale=False))
     return scaled
-
 
 
 def rotate_cells(cells: Union[Cell, List[Cell]]) -> List[Cell]:
