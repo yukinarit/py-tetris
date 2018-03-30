@@ -260,6 +260,10 @@ class Tetrimino(GameObject):
 
     def rotate(self) -> None:
         self.cells = rotate_cells(self.cells)
+        for o in self.parent.field.children:
+            if check_collision(self, o):
+                self.cells = rotate_cells(self.cells, True)
+                return
 
     def make_cells(self) -> List[Cell]:
         return self.cells
@@ -420,6 +424,7 @@ class Game:
         regist(MouseKey.Up, lambda k: self.move(self.player, dx=0, dy=-1))
         regist(MouseKey.Down, lambda k: self.move(self.player, dx=0, dy=1))
         regist(MouseKey.Enter, lambda k: self.player.rotate())
+        # regist(MouseKey.Space, lambda k: self.player.rotate(True))
 
     def __enter__(self):
         return self

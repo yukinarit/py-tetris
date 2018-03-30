@@ -6,7 +6,7 @@ from typing import List, Dict, Tuple, Union, Callable  # noqa
 from termbox import (DEFAULT, BLACK, RED, GREEN, YELLOW, BLUE,  # type: ignore
                      MAGENTA, CYAN, WHITE, KEY_ESC,
                      KEY_ARROW_UP, KEY_ARROW_DOWN, KEY_ARROW_LEFT,
-                     KEY_ENTER, KEY_ARROW_RIGHT, Termbox)
+                     KEY_ENTER, KEY_SPACE, KEY_ARROW_RIGHT, Termbox)
 from .logging import create_logger
 from .exceptions import Exit
 
@@ -139,7 +139,7 @@ def scale_cells(cells: Union[Cell, List[Cell]]) -> List[Cell]:
     return scaled
 
 
-def rotate_cells(cells: Union[Cell, List[Cell]]) -> List[Cell]:
+def rotate_cells(cells: Union[Cell, List[Cell]], backward=False) -> List[Cell]:
     if isinstance(cells, Cell):
         return [cells]
     first = cells[0]
@@ -148,8 +148,12 @@ def rotate_cells(cells: Union[Cell, List[Cell]]) -> List[Cell]:
             continue
         dx = c.x - first.x
         dy = c.y - first.y
-        c.x = first.x + dy
-        c.y = first.y - dx
+        if not backward:
+            c.x = first.x + dy
+            c.y = first.y - dx
+        else:
+            c.x = first.x - dy
+            c.y = first.y + dx
     return cells
 
 
@@ -223,6 +227,7 @@ class MouseKey(enum.Enum):
     Up = KEY_ARROW_UP
     Down = KEY_ARROW_DOWN
     Enter = KEY_ENTER
+    Space = KEY_SPACE
     a = 'a'
     b = 'b'
     c = 'c'
@@ -234,7 +239,7 @@ class MouseKey(enum.Enum):
     i = 'i'
     j = 'j'
     k = 'k'
-    l = 'l'
+    l = 'l'  # noqa
     m = 'm'
     n = 'n'
     o = 'o'
