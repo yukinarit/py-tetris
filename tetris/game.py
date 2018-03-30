@@ -62,7 +62,7 @@ class GameObject(Renderable):
     def move(self, dx: int, dy: int) -> None:
         pass
 
-    def remove_cell(self, x: int, y: int) -> None:
+    def remove(self, cell: Cell) -> None:
         pass
 
 
@@ -156,7 +156,8 @@ class Field:
             if p.x == x and p.y == y:
                 if not isinstance(p.obj, Map):
                     del positions[n]
-                    del p.obj.cells[p.obj.cells.index(p.cell)]
+                p.obj.remove(p.cell)
+
         if not positions:
             del self.positions[finfo.oid]
 
@@ -274,8 +275,10 @@ class Tetrimino(GameObject):
             cell.x += dx
             cell.y += dy
 
-    def remove_cell(self, x: int, y: int) -> None:
-        pass
+    def remove(self, cell: Cell) -> None:
+        del self.cells[self.cells.index(cell)]
+        if self is self.parent.player and not self.cells:
+            self.parent.will_spawn = True
 
 
 class ITetrimino(Tetrimino):
@@ -328,6 +331,23 @@ class STetrimino(Tetrimino):
                       Cell(x+2, y+1, fg, bg)]
 
 
+class ZTetrimino(Tetrimino):
+    """
+    Z-Tetorimino. The shape is like this
+    ■ ■
+      ■ ■
+    """
+    def __init__(self, x: int, y: int, bg: Color) -> None:
+        super().__init__(x, y, bg)
+        x = self.pos.x
+        y = self.pos.y
+        fg, bg = self.get_color()
+        self.cells = [Cell(x, y, fg, bg),
+                      Cell(x+1, y, fg, bg),
+                      Cell(x+1, y-1, fg, bg),
+                      Cell(x+2, y-1, fg, bg)]
+
+
 class LTetrimino(Tetrimino):
     """
     L-Tetorimino. The shape is like this
@@ -343,6 +363,23 @@ class LTetrimino(Tetrimino):
                       Cell(x+1, y, fg, bg),
                       Cell(x+2, y, fg, bg),
                       Cell(x+2, y+1, fg, bg)]
+
+
+class JTetrimino(Tetrimino):
+    """
+    J-Tetorimino. The shape is like this
+    ■
+    ■ ■ ■
+    """
+    def __init__(self, x: int, y: int, bg: Color) -> None:
+        super().__init__(x, y, bg)
+        x = self.pos.x
+        y = self.pos.y
+        fg, bg = self.get_color()
+        self.cells = [Cell(x, y, fg, bg),
+                      Cell(x, y+1, fg, bg),
+                      Cell(x+1, y, fg, bg),
+                      Cell(x+2, y, fg, bg)]
 
 
 class TTetrimino(Tetrimino):
@@ -416,8 +453,8 @@ class Game:
         return 0
 
     def spawn(self) -> None:
-        tetriminos = [ITetrimino, OTetrimino, STetrimino,
-                      TTetrimino, LTetrimino]
+        tetriminos = [ITetrimino, OTetrimino, STetrimino, ZTetrimino,
+                      TTetrimino, LTetrimino, JTetrimino]
         colors = [Color.Red, Color.Green, Color.Yellow,
                   Color.Blue, Color.Magenta, Color.Cyan]
         cls = random.choice(tetriminos)
