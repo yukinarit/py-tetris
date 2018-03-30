@@ -281,8 +281,8 @@ class ITetrimino(Tetrimino):
     I-Tetorimino. The shape is like this
     ■ ■ ■ ■
     """
-    def __init__(self, x: int, y: int, bg: Color) -> None:
-        super().__init__(x, y, bg)
+    def __init__(self, x: int, y: int) -> None:
+        super().__init__(x, y, Color.Cyan)
         x = self.pos.x
         y = self.pos.y
         fg, bg = self.get_color()
@@ -298,8 +298,8 @@ class OTetrimino(Tetrimino):
     ■ ■
     ■ ■
     """
-    def __init__(self, x: int, y: int, bg: Color) -> None:
-        super().__init__(x, y, bg)
+    def __init__(self, x: int, y: int) -> None:
+        super().__init__(x, y, Color.Yellow)
         x = self.pos.x
         y = self.pos.y
         fg, bg = self.get_color()
@@ -315,8 +315,8 @@ class STetrimino(Tetrimino):
       ■ ■
     ■ ■
     """
-    def __init__(self, x: int, y: int, bg: Color) -> None:
-        super().__init__(x, y, bg)
+    def __init__(self, x: int, y: int) -> None:
+        super().__init__(x, y, Color.Green)
         x = self.pos.x
         y = self.pos.y
         fg, bg = self.get_color()
@@ -332,8 +332,8 @@ class ZTetrimino(Tetrimino):
     ■ ■
       ■ ■
     """
-    def __init__(self, x: int, y: int, bg: Color) -> None:
-        super().__init__(x, y, bg)
+    def __init__(self, x: int, y: int) -> None:
+        super().__init__(x, y, Color.Red)
         x = self.pos.x
         y = self.pos.y
         fg, bg = self.get_color()
@@ -349,8 +349,8 @@ class LTetrimino(Tetrimino):
         ■
     ■ ■ ■
     """
-    def __init__(self, x: int, y: int, bg: Color) -> None:
-        super().__init__(x, y, bg)
+    def __init__(self, x: int, y: int) -> None:
+        super().__init__(x, y, Color.Blue)
         x = self.pos.x
         y = self.pos.y
         fg, bg = self.get_color()
@@ -366,8 +366,8 @@ class JTetrimino(Tetrimino):
     ■
     ■ ■ ■
     """
-    def __init__(self, x: int, y: int, bg: Color) -> None:
-        super().__init__(x, y, bg)
+    def __init__(self, x: int, y: int) -> None:
+        super().__init__(x, y, Color.Blue)
         x = self.pos.x
         y = self.pos.y
         fg, bg = self.get_color()
@@ -383,8 +383,8 @@ class TTetrimino(Tetrimino):
       ■
     ■ ■ ■
     """
-    def __init__(self, x: int, y: int, bg: Color) -> None:
-        super().__init__(x, y, bg)
+    def __init__(self, x: int, y: int) -> None:
+        super().__init__(x, y, Color.Magenta)
         x = self.pos.x
         y = self.pos.y
         fg, bg = self.get_color()
@@ -454,11 +454,9 @@ class Game:
     def spawn(self) -> None:
         tetriminos = [ITetrimino, OTetrimino, STetrimino, ZTetrimino,
                       TTetrimino, LTetrimino, JTetrimino]
-        colors = [Color.Red, Color.Green, Color.Yellow,
-                  Color.Blue, Color.Magenta, Color.Cyan]
         cls = random.choice(tetriminos)
         self.add(self.player)
-        self.add_player(cls(x=4, y=0, bg=random.choice(colors)))
+        self.add_player(cls(x=4, y=0))
         self.will_spawn = False
         if not self.player:
             self.spawn()
