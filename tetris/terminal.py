@@ -92,7 +92,7 @@ class Cell:
         return f'Cell: x={self.x},y={self.y},c={self.c}'
 
 
-def render_objects(tm: 'Terminal', objects: List['Renderable']):
+def render_objects(tm: 'Terminal', *objects):
     """
     Render objects in terminal.
     """
@@ -194,9 +194,6 @@ class Renderable:
         """
         render_cells(tm, self.make_cells())
 
-    def get_pos(self) -> Vector2:
-        return self.pos
-
     @abc.abstractmethod
     def make_cells(self) -> List[Cell]:
         pass
@@ -270,26 +267,26 @@ class Terminal:
         logger.debug("init {}".format(self.tb))
         self.debug = debug
         self._keydown_handlers: Dict[MouseKey, Callable] = {}
-        self._on_shutdown = None
+        self._on_shutdown: Callable = None
 
-    def __enter__(self):
+    def __enter__(self) -> 'Terminal':
         logger.debug("entering {}".format(self.tb))
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         logger.debug("exiting {}".format(self.tb))
         self.close()
 
-    def __del__(self):
+    def __del__(self) -> None:
         logger.debug("deleting {}".format(self.tb))
         self.close()
 
-    def close(self):
+    def close(self) -> None:
         if self.tb:
             self.tb.close()
             self.tb = None
 
-    def set_keydown_handler(self, keys, cb):
+    def set_keydown_handler(self, keys, cb) -> None:
         logger.debug(f"set key handler for {keys}")
         if isinstance(keys, list):
             for key in keys:
@@ -299,47 +296,47 @@ class Terminal:
             self._keydown_handlers.update({key.value: cb})
 
     def get_keydown_handler(self, key: MouseKey) -> Callable:
-        logger.debug(f"get key handler for {key}.")
+        logger.debug(f'get key handler for {key}.')
         handler = self._keydown_handlers.get(key)
         if handler:
-            logger.debug(f"key handler found for {key}.")
+            logger.debug(f'key handler found for {key}.')
             return handler
         else:
-            logger.debug(f"key handler not found for {key}.")
+            logger.debug(f'key handler not found for {key}.')
             return None
 
     @property
-    def on_shutdown(self):
+    def on_shutdown(self) -> Callable:
         return self._on_shutdown
 
     @on_shutdown.setter
-    def on_shutdown(self, f):
+    def on_shutdown(self, f: Callable) -> None:
         self._on_shutdown = f
 
     @property
-    def width(self):
+    def width(self) -> int:
         return self.tb.width()
 
     @property
-    def height(self):
+    def height(self) -> int:
         return self.tb.height()
 
-    def clear(self):
+    def clear(self) -> None:
         """
         Clear the console
         """
         self.tb.clear()
 
-    def update(self, now, *objects):
+    def update(self, now, *objects) -> None:
         """
         Render any renderable object on the console.
         """
         self.clear()
         self.peek_key_event()
-        render_objects(self, objects)
+        render_objects(self, *objects)
         self.tb.present()
 
-    def peek_key_event(self):
+    def peek_key_event(self) -> None:
         try:
             if not self.tb:
                 raise RuntimeError('Null termbox')
@@ -365,5 +362,5 @@ class Terminal:
             pass
 
         except Exception as e:
-            print(e)
+            logger.error(e)
             raise

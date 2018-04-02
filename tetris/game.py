@@ -28,7 +28,8 @@ def now() -> datetime.datetime:
     return datetime.datetime.now()
 
 
-def collided(obj: Renderable, other: Renderable, dx: int=None, dy: int=None):
+def collided(obj: Renderable, other: Renderable,
+             dx: int=None, dy: int=None) -> None:
     if isinstance(obj, GameObject):
         obj.on_collided(Collision(other, dx, dy))
 
@@ -51,6 +52,9 @@ class GameObject(Renderable):
         self.children: List['GameObject'] = None
         self.set_color(fg=DEFAULT_COLOR, bg=DEFAULT_COLOR)
         self.cells: List[Cell] = []
+
+    def update(self) -> None:
+        pass
 
     def on_collided(self, col: Collision) -> None:
         pass
@@ -113,7 +117,7 @@ class Field:
     def children(self) -> Iter:
         return Iter(self)
 
-    def update(self, obj: GameObject):
+    def update(self, obj: GameObject) -> None:
         self.remove(obj)
         for cell in obj.make_cells():
             x = cell.x
@@ -217,7 +221,7 @@ class Map(GameObject):
     def make_cells(self) -> List[Cell]:
         return self.cells
 
-    def load(self, mapfile: pathlib.Path):
+    def load(self, mapfile: pathlib.Path) -> None:
         logger.debug('Map load START')
         with mapfile.open() as f:
             for line in f:
@@ -423,13 +427,13 @@ class Game:
         regist(MouseKey.Down, lambda k: self.move(self.player, dx=0, dy=1))
         regist(MouseKey.Enter, lambda k: self.player.rotate())
 
-    def __enter__(self):
+    def __enter__(self) -> 'Game':
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.terminal.close()
 
-    def run(self):
+    def run(self) -> int:
         """
         Run the Game loop.
         """
@@ -448,7 +452,7 @@ class Game:
             self.terminal.close()
             logger.error(e)
             logger.error(traceback.format_exc())
-            return -1
+            return StatusCode.Error
         return 0
 
     def spawn(self) -> None:
@@ -461,7 +465,7 @@ class Game:
         if not self.player:
             self.spawn()
 
-    def move(self, obj: GameObject, dx: int, dy: int):
+    def move(self, obj: GameObject, dx: int, dy: int) -> None:
         obj.move(dx, dy)
         for o in self.field.children:
             if check_collision(obj, o):
@@ -472,7 +476,7 @@ class Game:
         self.field.update(obj)
         self.terminal.update(now(), self.player, *list(self.field.children))
 
-    def add(self, obj: GameObject):
+    def add(self, obj: GameObject) -> None:
         """
         Add game object to the game.
         """
@@ -481,7 +485,7 @@ class Game:
         obj.parent = self
         self.field.update(obj)
 
-    def add_player(self, obj: GameObject):
+    def add_player(self, obj: GameObject) -> None:
         """
         Add player controllable game object to the game.
         """
@@ -497,10 +501,12 @@ class Game:
         self.next_player.collidable = False
         self.add(self.next_player)
 
-    def update(self, now: datetime.datetime):
+    def update(self, now: datetime.datetime) -> None:
         """
         Update terminal and game objects.
         """
+        for obj in self.field.children:
+            obj.update()
         # Gravity: move player 1 point per second.
         if (now - self.last_second).seconds >= 1:
             self.last_second = now
