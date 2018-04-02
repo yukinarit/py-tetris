@@ -5,8 +5,12 @@ import pathlib
 from typing import List, Dict, Tuple, Union, Callable  # noqa
 from termbox import (DEFAULT, BLACK, RED, GREEN, YELLOW, BLUE,  # type: ignore
                      MAGENTA, CYAN, WHITE, KEY_ESC,
-                     KEY_ARROW_UP, KEY_ARROW_DOWN, KEY_ARROW_LEFT,
-                     KEY_ENTER, KEY_SPACE, KEY_ARROW_RIGHT, Termbox)
+                     KEY_INSERT, KEY_DELETE, KEY_HOME, KEY_END,
+                     KEY_PGUP, KEY_PGDN, KEY_ARROW_UP, KEY_ARROW_DOWN,
+                     KEY_ARROW_LEFT, KEY_ARROW_RIGHT, KEY_MOUSE_LEFT,
+                     KEY_MOUSE_RIGHT, KEY_MOUSE_MIDDLE, KEY_MOUSE_RELEASE,
+                     KEY_MOUSE_WHEEL_UP, KEY_MOUSE_WHEEL_DOWN,
+                     KEY_ENTER, KEY_SPACE, Termbox)
 from .logging import create_logger
 from .exceptions import Exit
 
@@ -222,10 +226,22 @@ class Renderable:
 
 class MouseKey(enum.Enum):
     ESC = KEY_ESC
-    Left = KEY_ARROW_LEFT
-    Right = KEY_ARROW_RIGHT
+    Insert = KEY_INSERT
+    Delete = KEY_DELETE
+    Home = KEY_HOME
+    End = KEY_END
+    PgUp = KEY_PGUP
+    PgDown = KEY_PGDN
     Up = KEY_ARROW_UP
     Down = KEY_ARROW_DOWN
+    Left = KEY_ARROW_LEFT
+    Right = KEY_ARROW_RIGHT
+    MouseLeft = KEY_MOUSE_LEFT
+    MouseRight = KEY_MOUSE_RIGHT
+    MouseMiddle = KEY_MOUSE_MIDDLE
+    MouseRelease = KEY_MOUSE_RELEASE
+    MouseWheelUp = KEY_MOUSE_WHEEL_UP
+    MouseWheelDown = KEY_MOUSE_WHEEL_DOWN
     Enter = KEY_ENTER
     Space = KEY_SPACE
     a = 'a'
