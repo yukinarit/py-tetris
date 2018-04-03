@@ -5,12 +5,16 @@ from .terminal import logger as term_logger
 from .game import Game, Exit, logger as game_logger
 
 
+def setup() -> None:
+    setup_logger(game_logger, level=Level.DEBUG,
+                 file='tetris.log', color=True)
+
+
 def run():
     rv = 1
-    setup_logger(term_logger, level=Level.DEBUG, file='tetris.log', color=True)
-    setup_logger(game_logger, level=Level.DEBUG, file='tetris.log', color=True)
 
     try:
+        setup()
         with Game() as game:
             game.run()
 

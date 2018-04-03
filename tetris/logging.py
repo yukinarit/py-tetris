@@ -4,6 +4,7 @@ import logging.handlers
 import pathlib
 import sys
 import traceback
+from typing import Union, List, Tuple  # noqa
 from termcolor import colored  # type: ignore
 
 
@@ -18,6 +19,9 @@ class IndentFormatter(logging.Formatter):
             self.base = depth
         record.indent = '.' * (depth - self.base)
         return logging.Formatter.format(self, record)
+
+
+PLAIN_FORMATTER = logging.Formatter('%(message)s')
 
 
 DEFAULT_FORMATTER = logging.Formatter(
@@ -67,6 +71,23 @@ class ColorizedLogger:
         return getattr(self._log, name)
 
 
+class TerminalHandler(logging.Handler):
+    def __init__(self, game, x: int, y: int, width: int, height: int,
+                 *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.game = game
+
+    def emit(self, record):
+        entry = self.format(record)
+        if len(entry) > self.width:
+            entry = entry[:self.width]
+        self.game.write(self.x, self.y, entry)
+
+
 def create_logger(name: str, **options) -> ColorizedLogger:
     """
     Create a brand new logger.
@@ -78,29 +99,35 @@ def create_logger(name: str, **options) -> ColorizedLogger:
     return logger
 
 
-def setup_logger(logger: ColorizedLogger, level: Level=Level.INFO,
-                 file: pathlib.Path=None, stdout: bool=False,
-                 facility: int=logging.handlers.SysLogHandler.LOG_USER,
-                 color: bool=False, indent_formatter: bool=False,) -> None:
+def setup_logger(*loggers,
+                 level: Level=Level.INFO,
+                 file: Union[str, pathlib.Path]=None, stdout: bool=False,
+                 color: bool=False,
+                 formatter=DEFAULT_FORMATTER,
+                 indent_formatter: bool=False) -> None:
     """
     Setup logger.
     """
-    logger.setLevel(level)
-    if indent_formatter:
-        formatter = INDENT_FORMATTER
-    else:
-        formatter = DEFAULT_FORMATTER  # type: ignore
+    if isinstance(loggers, ColorizedLogger):
+        loggers = [loggers]
 
-    if file:
-        if not isinstance(file, pathlib.Path):
-            file = pathlib.Path(file)
-        fh = logging.FileHandler(str(file.absolute()), encoding='utf-8')
-        fh.setFormatter(formatter)
-        fh.setLevel(level)
-        logger.addHandler(fh)
-    if stdout:
-        sh = logging.StreamHandler(sys.stdout)
-        sh.setFormatter(formatter)
-        sh.setLevel(level)
-        logger.addHandler(sh)
-    logger.color = color
+    for logger in loggers:
+        logger.setLevel(level)
+        if formatter is None:
+            formatter = PLAIN_FORMATTER
+        if indent_formatter:
+            formatter = INDENT_FORMATTER
+
+        if file:
+            if not isinstance(file, pathlib.Path):
+                file = pathlib.Path(file)
+            fh = logging.FileHandler(str(file.absolute()), encoding='utf-8')
+            fh.setFormatter(formatter)
+            fh.setLevel(level)
+            logger.addHandler(fh)
+        if stdout:
+            sh = logging.StreamHandler(sys.stdout)
+            sh.setFormatter(formatter)
+            sh.setLevel(level)
+            logger.addHandler(sh)
+        logger.color = color

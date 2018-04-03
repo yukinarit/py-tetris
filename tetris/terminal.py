@@ -161,34 +161,18 @@ def rotate_cells(cells: Union[Cell, List[Cell]], backward=False) -> List[Cell]:
     return cells
 
 
-def check_collision(a: 'Renderable', b: 'Renderable') -> bool:
-    """
-    True if two objects are being collided, False otherwise.
-    """
-    if a is b:
-        return False
-    if not a.collidable or not b.collidable:
-        return False
-    acells = scale_cells(a.make_cells())
-    bcells = scale_cells(b.make_cells())
-    for ac in acells:
-        for bc in bcells:
-            if ac.x == bc.x and ac.y == bc.y:
-                return True
-    return False
-
-
 class Renderable:
     """
     Renderable object base.
     """
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, x: int=None, y: int=None) -> None:
+    def __init__(self, x: int=None, y: int=None, fg: Color=Color.Default,
+                 bg: Color=Color.Default) -> None:
         self.pos: Vector2 = Vector2(x, y)
         self.prev_pos: Vector2 = None
-        self.fg: Color = None
-        self.bg: Color = None
+        self.fg: Color = fg
+        self.bg: Color = bg
         self.collidable = True
 
     def render(self, tm: 'Terminal'=None, dx: int=0, dy: int=0,
@@ -201,10 +185,6 @@ class Renderable:
     @abc.abstractmethod
     def make_cells(self) -> List[Cell]:
         pass
-
-    @abc.abstractproperty
-    def shape(self) -> Shape:
-        return None
 
     def set_color(self, fg: Color, bg: Color):
         """
@@ -294,7 +274,7 @@ class Terminal:
         self.close()
 
     def __del__(self) -> None:
-        logger.debug("deleting {}".format(self.tb))
+        # logger.debug("deleting {}".format(self.tb))
         self.close()
 
     def close(self) -> None:
@@ -376,6 +356,9 @@ class Terminal:
 
         except TypeError as e:
             pass
+
+        except Exit:
+            raise
 
         except Exception as e:
             logger.error(e)

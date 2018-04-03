@@ -7,8 +7,7 @@ import pathlib
 import random
 from typing import List, Dict, Any, Callable  # noqa
 from .terminal import Terminal, Renderable, Cell, Color, \
-        Shape, Vector2, MouseKey, \
-        check_collision, rotate_cells
+    Shape, Vector2, MouseKey, rotate_cells, scale_cells
 from .logging import create_logger
 from .exceptions import StatusCode, Exit
 
@@ -28,6 +27,53 @@ def now() -> datetime.datetime:
     return datetime.datetime.now()
 
 
+class GameObject(Renderable):
+    """
+    Base game object.
+    """
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.gravity = True
+        self.parent: Any = None
+        self.children: List['GameObject'] = None
+        self.set_color(fg=DEFAULT_COLOR, bg=DEFAULT_COLOR)
+        self.cells: List[Cell] = []
+
+    def update(self) -> None:
+        pass
+
+    def on_collided(self, col: 'Collision') -> None:
+        pass
+
+    def move(self, dx: int, dy: int) -> None:
+        pass
+
+    def rotate(self) -> None:
+        pass
+
+    def remove(self, cell: Cell) -> None:
+        pass
+
+
+def check_collision(a: GameObject, b: GameObject) -> bool:
+    """
+    True if two objects are being collided, False otherwise.
+    """
+    if not isinstance(a, GameObject) or not isinstance(b, GameObject):
+        return False
+    if a is b:
+        return False
+    if not a.collidable or not b.collidable:
+        return False
+    acells = scale_cells(a.make_cells())
+    bcells = scale_cells(b.make_cells())
+    for ac in acells:
+        for bc in bcells:
+            if ac.x == bc.x and ac.y == bc.y:
+                return True
+    return False
+
+
 def collided(obj: Renderable, other: Renderable,
              dx: int=None, dy: int=None) -> None:
     if isinstance(obj, GameObject):
@@ -39,34 +85,6 @@ class Collision:
         self.other = other
         self.dx = dx
         self.dy = dy
-
-
-class GameObject(Renderable):
-    """
-    Base game object.
-    """
-    def __init__(self) -> None:
-        super().__init__()
-        self.gravity = True
-        self.parent: Any = None
-        self.children: List['GameObject'] = None
-        self.set_color(fg=DEFAULT_COLOR, bg=DEFAULT_COLOR)
-        self.cells: List[Cell] = []
-
-    def update(self) -> None:
-        pass
-
-    def on_collided(self, col: Collision) -> None:
-        pass
-
-    def move(self, dx: int, dy: int) -> None:
-        pass
-
-    def rotate(self) -> None:
-        pass
-
-    def remove(self, cell: Cell) -> None:
-        pass
 
 
 class FieldInfo:
@@ -214,10 +232,6 @@ class Map(GameObject):
     def height(self) -> int:
         return self._height
 
-    @property
-    def shape(self) -> Shape:
-        return None
-
     def make_cells(self) -> List[Cell]:
         return self.cells
 
@@ -239,6 +253,19 @@ class Map(GameObject):
         logger.debug('Map load END')
 
 
+class Text(GameObject):
+    def __init__(self, text: str='', *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.set_color(fg=Color.White, bg=Color.Black)
+        self.text = text
+        self.cells = [Cell(self.pos.x+n, self.pos.y,
+                           fg=self.fg, bg=self.bg, c=ord(c), scale=False)
+                      for n, c in enumerate(text)]
+
+    def make_cells(self) -> List[Cell]:
+        return self.cells
+
+
 class Tetrimino(GameObject):
     """
     Tetrimino - Blocks in Tetoris.
@@ -254,10 +281,6 @@ class Tetrimino(GameObject):
         if col.dy is not None and col.dy > 0 and self is self.parent.player:
             self.parent.check_tetris()
             self.parent.will_spawn = True
-
-    @property
-    def shape(self) -> Shape:
-        return Shape.Square.value
 
     def rotate(self) -> None:
         self.cells = rotate_cells(self.cells)
@@ -407,13 +430,14 @@ class Game:
         self.objects: List[GameObject] = []
         self.map: Map = Map()
         self.map.load(mapdir / 'map.txt')
-        self.field = Field(self.map.width, self.map.height)
+        self.field = Field(self.terminal.width, self.terminal.height)
         self.field.update(self.map)
         self.next_player: GameObject = None
         self.player: GameObject = None
         self.last_second: datetime.datetime = now()
         self.will_spawn = False
         self.add(self.map)
+        self.message: Text = None
 
         def terminal_on_shutdown():
             raise Exit()
@@ -437,6 +461,7 @@ class Game:
         """
         Run the Game loop.
         """
+        self.system_message('GAME START')
         self.spawn()
         try:
             while True:
@@ -485,6 +510,11 @@ class Game:
         obj.parent = self
         self.field.update(obj)
 
+    def remove(self, obj: GameObject) -> None:
+        if not obj:
+            return
+        self.field.remove(obj)
+
     def add_player(self, obj: GameObject) -> None:
         """
         Add player controllable game object to the game.
@@ -501,6 +531,18 @@ class Game:
         self.next_player.collidable = False
         self.add(self.next_player)
 
+    def system_message(self, text: str) -> None:
+        """
+        Write system message in terminal.
+        """
+        if self.message and text == self.message.text:
+            return
+        self.remove(self.message)
+        self.message = Text(x=0, y=22, text=text,
+                            fg=Color.White,
+                            bg=Color.Black)
+        self.add(self.message)
+
     def update(self, now: datetime.datetime) -> None:
         """
         Update terminal and game objects.
@@ -513,7 +555,7 @@ class Game:
             for obj in self.field.children:
                 if obj.gravity:
                     self.move(obj, dx=0, dy=1)
-            self.field.debug_print()
+            # self.field.debug_print()
         self.terminal.update(now, *list(self.field.children))
 
     def check_tetris(self) -> None:
