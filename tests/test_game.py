@@ -1,5 +1,4 @@
-import pytest
-from ctetoris.game import GameObject
+from tetris.game import GameObject, nrange
 
 
 def test_renderable():

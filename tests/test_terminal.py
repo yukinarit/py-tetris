@@ -1,5 +1,4 @@
-import pytest
-from ctetoris.terminal import Terminal
+from tetris.terminal import Terminal
 
 
 class MockTermbox:

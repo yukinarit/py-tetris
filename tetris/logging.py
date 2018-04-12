@@ -21,7 +21,7 @@ class IndentFormatter(logging.Formatter):
         return logging.Formatter.format(self, record)
 
 
-PLAIN_FORMATTER = logging.Formatter('%(message)s')
+PLANE_FORMATTER = logging.Formatter('%(message)s')
 
 
 DEFAULT_FORMATTER = logging.Formatter(
@@ -114,7 +114,7 @@ def setup_logger(*loggers,
     for logger in loggers:
         logger.setLevel(level)
         if formatter is None:
-            formatter = PLAIN_FORMATTER
+            formatter = PLANE_FORMATTER
         if indent_formatter:
             formatter = INDENT_FORMATTER
 

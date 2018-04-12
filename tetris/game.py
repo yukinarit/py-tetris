@@ -45,7 +45,7 @@ class GameObject(Renderable):
     def on_collided(self, col: 'Collision') -> None:
         pass
 
-    def move(self, dx: int, dy: int) -> None:
+    def move(self, dx: int=0, dy: int=0) -> None:
         pass
 
     def rotate(self) -> None:
@@ -125,6 +125,7 @@ class Field:
         logger.debug(f'Constructing Field w={width} h={height}')
         self.width = width
         self.height = height
+        self.map: 'Map' = None
         self.data: List[List[FieldInfo]] = [[
             None for w in range(0, width)]
             for h in range(0, height)]
@@ -134,6 +135,10 @@ class Field:
     @property
     def children(self) -> Iter:
         return Iter(self)
+
+    def set_map(self, map: 'Map') -> None:
+        self.map = map
+        self.update(map)
 
     def update(self, obj: GameObject) -> None:
         self.remove(obj)
@@ -189,7 +194,7 @@ class Field:
             return line[x] is None
         filled = True
         has_at_least_non_map = False
-        for c in line:
+        for c in line[:self.map.width]:
             if c is None:
                 return False
             if isinstance(c.obj, Map):
@@ -292,7 +297,7 @@ class Tetrimino(GameObject):
     def make_cells(self) -> List[Cell]:
         return self.cells
 
-    def move(self, dx: int, dy: int) -> None:
+    def move(self, dx: int=0, dy: int=0) -> None:
         for cell in self.make_cells():
             cell.x += dx
             cell.y += dy
@@ -431,7 +436,7 @@ class Game:
         self.map: Map = Map()
         self.map.load(mapdir / 'map.txt')
         self.field = Field(self.terminal.width, self.terminal.height)
-        self.field.update(self.map)
+        self.field.set_map(self.map)
         self.next_player: GameObject = None
         self.player: GameObject = None
         self.last_second: datetime.datetime = now()
@@ -448,7 +453,7 @@ class Game:
         regist(MouseKey.Left, lambda k: self.move(self.player, dx=-1, dy=0))
         regist(MouseKey.Right, lambda k: self.move(self.player, dx=1, dy=0))
         regist(MouseKey.Up, lambda k: self.move(self.player, dx=0, dy=-1))
-        regist(MouseKey.Down, lambda k: self.move(self.player, dx=0, dy=1))
+        regist(MouseKey.Down, lambda k: self.move(self.player, dx=0, dy=3))
         regist(MouseKey.Enter, lambda k: self.player.rotate())
 
     def __enter__(self) -> 'Game':
@@ -491,13 +496,23 @@ class Game:
             self.spawn()
 
     def move(self, obj: GameObject, dx: int, dy: int) -> None:
-        obj.move(dx, dy)
-        for o in self.field.children:
-            if check_collision(obj, o):
-                collided(obj, o, dx, dy)
-                collided(o, obj)
-                obj.move(-dx, -dy)
-                break
+        def op(v: int) -> int:
+            return 1 if v >= 0 else -1
+        steps: List[Dict] = []
+        for x in range(abs(dx)):
+            steps.append(dict(dx=1*op(dx)))
+        for y in range(abs(dy)):
+            steps.append(dict(dy=1*op(dy)))
+        for step in steps:
+            logger.info(step)
+            obj.move(**step)
+            for o in self.field.children:
+                if check_collision(obj, o):
+                    collided(obj, o, **step)
+                    collided(o, obj)
+                    obj.move(**{k: -v for k, v in step.items()})
+                    break
+        self.check_tetris()
         self.field.update(obj)
         self.terminal.update(now(), self.player, *list(self.field.children))
 
@@ -555,7 +570,7 @@ class Game:
             for obj in self.field.children:
                 if obj.gravity:
                     self.move(obj, dx=0, dy=1)
-            # self.field.debug_print()
+            self.field.debug_print()
         self.terminal.update(now, *list(self.field.children))
 
     def check_tetris(self) -> None:
