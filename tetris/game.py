@@ -318,8 +318,8 @@ class ITetrimino(Tetrimino):
         x = self.pos.x
         y = self.pos.y
         fg, bg = self.get_color()
-        self.cells = [Cell(x, y, fg, bg),
-                      Cell(x+1, y, fg, bg),
+        self.cells = [Cell(x+1, y, fg, bg),
+                      Cell(x, y, fg, bg),
                       Cell(x+2, y, fg, bg),
                       Cell(x+3, y, fg, bg)]
 
@@ -352,8 +352,8 @@ class STetrimino(Tetrimino):
         x = self.pos.x
         y = self.pos.y
         fg, bg = self.get_color()
-        self.cells = [Cell(x, y, fg, bg),
-                      Cell(x+1, y, fg, bg),
+        self.cells = [Cell(x+1, y, fg, bg),
+                      Cell(x, y, fg, bg),
                       Cell(x+1, y+1, fg, bg),
                       Cell(x+2, y+1, fg, bg)]
 
@@ -369,9 +369,9 @@ class ZTetrimino(Tetrimino):
         x = self.pos.x
         y = self.pos.y
         fg, bg = self.get_color()
-        self.cells = [Cell(x, y, fg, bg),
+        self.cells = [Cell(x+1, y-1, fg, bg),
+                      Cell(x, y, fg, bg),
                       Cell(x+1, y, fg, bg),
-                      Cell(x+1, y-1, fg, bg),
                       Cell(x+2, y-1, fg, bg)]
 
 
@@ -386,9 +386,9 @@ class LTetrimino(Tetrimino):
         x = self.pos.x
         y = self.pos.y
         fg, bg = self.get_color()
-        self.cells = [Cell(x, y, fg, bg),
+        self.cells = [Cell(x+2, y, fg, bg),
+                      Cell(x, y, fg, bg),
                       Cell(x+1, y, fg, bg),
-                      Cell(x+2, y, fg, bg),
                       Cell(x+2, y+1, fg, bg)]
 
 
