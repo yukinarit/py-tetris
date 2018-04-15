@@ -1,11 +1,11 @@
 import abc
-import collections
 import datetime
 import time
 import traceback
 import pathlib
 import random
-from typing import List, Dict, Any, Callable  # noqa
+from typing import List, Set, Dict, Any, Callable, \
+    Generator  # noqa
 from .terminal import Terminal, Renderable, Cell, Color, \
     Shape, Vector2, MouseKey, rotate_cells, scale_cells
 from .logging import create_logger
@@ -97,29 +97,6 @@ class FieldInfo:
         self.cell = cell
 
 
-class Iter:
-    def __init__(self, field: 'Field') -> None:
-        self.field = field
-        self.oids = list(field.positions.keys())
-        self.n = 0
-        self.length = len(self.oids)
-
-    def __iter__(self) -> 'Iter':
-        return self
-
-    def __next__(self) -> GameObject:
-        if self.n < self.length:
-            oid = self.oids[self.n]
-            self.n += 1
-            obj = self.field.positions[oid][0].obj
-            if obj:
-                return obj
-            else:
-                return self.__next__()
-        else:
-            raise StopIteration()
-
-
 class Field:
     def __init__(self, width: int, height: int) -> None:
         logger.debug(f'Constructing Field w={width} h={height}')
@@ -129,25 +106,30 @@ class Field:
         self.data: List[List[FieldInfo]] = [[
             None for w in range(0, width)]
             for h in range(0, height)]
-        self.positions: Dict[int, List[FieldInfo]] = \
-            collections.defaultdict(list)
 
     @property
-    def children(self) -> Iter:
-        return Iter(self)
+    def children(self) -> Generator:
+        checked: Set[int] = set()
+        for y in range(self.map.height):
+            for x in range(self.map.width):
+                finfo = self.data[y][x]
+                if finfo is None:
+                    continue
+                if id(finfo.obj) in checked:
+                    continue
+                checked.add(id(finfo.obj))
+                yield finfo.obj
 
     def set_map(self, map: 'Map') -> None:
         self.map = map
         self.update(map)
 
     def update(self, obj: GameObject) -> None:
-        self.remove(obj)
+        self.clear(obj)
         for cell in obj.make_cells():
             x = cell.x
             y = cell.y
-            finfo = FieldInfo(x, y, obj, cell)
-            self.data[y][x] = finfo
-            self.positions[id(obj)].append(finfo)
+            self.data[y][x] = FieldInfo(x, y, obj, cell)
 
     def get(self, x: int, y: int) -> FieldInfo:
         try:
@@ -156,15 +138,17 @@ class Field:
             logger.warn(f'Out of range access ({x},{y})')
             return None
 
+    def clear(self, obj: GameObject) -> None:
+        if not obj:
+            return
+        for cell in obj.make_cells():
+            self.data[cell.y][cell.x] = None
+
     def remove(self, obj: GameObject) -> None:
-        try:
-            oid = id(obj)
-            positions: List[FieldInfo] = self.positions[oid]
-            del self.positions[oid]
-            for finfo in positions:
-                self.data[finfo.y][finfo.x] = None
-        except KeyError as e:
-            logger.warn("Tried to remove obj that doesn't exist!")
+        if not obj:
+            return
+        for cell in obj.make_cells():
+            self.remove_at(cell.x, cell.y)
 
     def remove_at(self, x: int, y: int) -> None:
         finfo = self.get(x, y)
@@ -172,21 +156,22 @@ class Field:
             return
         self.data[y][x] = None
 
-        positions = self.positions[finfo.oid]
-        for n, p in enumerate(positions):
-            if p.x == x and p.y == y:
-                if not isinstance(p.obj, Map):
-                    del positions[n]
-                p.obj.remove(p.cell)
-
-        if not positions:
-            del self.positions[finfo.oid]
+        obj = finfo.obj
+        for n, c in enumerate(obj.make_cells()):
+            if c.x == x and c.y == y and not isinstance(obj, Map):
+                obj.remove(c)
 
     def remove_line(self, y: int) -> None:
         line = self.data[y]
         for x, c in enumerate(line):
-            logger.debug(f'Removing cell at ({x},{y})')
             self.remove_at(x, y)
+
+    def restructure(self) -> None:
+        for obj in self.children:
+            if isinstance(obj, Tetrimino):
+                new_tetrimino = obj.split()
+                if new_tetrimino:
+                    self.update(new_tetrimino)
 
     def check_filled(self, y: int=None, x: int=None) -> bool:
         line = self.data[y]
@@ -284,7 +269,6 @@ class Tetrimino(GameObject):
 
     def on_collided(self, col: Collision) -> None:
         if col.dy is not None and col.dy > 0 and self is self.parent.player:
-            self.parent.check_tetris()
             self.parent.will_spawn = True
 
     def rotate(self) -> None:
@@ -306,6 +290,25 @@ class Tetrimino(GameObject):
         del self.cells[self.cells.index(cell)]
         if self is self.parent.player and not self.cells:
             self.parent.will_spawn = True
+
+    def split(self) -> 'Tetrimino':
+        # If there is an isolated block, make it a new tetrimino
+        splitted = None
+        if not self.cells or len(self.cells) < 2:
+            return None
+        for n, cell in enumerate(self.cells):
+            isolated = True
+            for other in self.cells:
+                if cell is other:
+                    continue
+                distance = abs(cell.x - other.x) + abs(cell.y - other.y)
+                if distance <= 1:
+                    isolated = False
+            if isolated:
+                splitted = Tetrimino(cell.x, cell.y, cell.bg)
+                del self.cells[n]
+                return splitted
+        return None
 
 
 class ITetrimino(Tetrimino):
@@ -472,6 +475,7 @@ class Game:
             while True:
                 self.update(now())
                 if self.will_spawn:
+                    self.check_tetris()
                     self.spawn()
                 time.sleep(1 / FPS)
 
@@ -498,6 +502,7 @@ class Game:
     def move(self, obj: GameObject, dx: int, dy: int) -> None:
         def op(v: int) -> int:
             return 1 if v >= 0 else -1
+        self.field.clear(obj)
         steps: List[Dict] = []
         for x in range(abs(dx)):
             steps.append(dict(dx=1*op(dx)))
@@ -586,3 +591,4 @@ class Game:
                 logger.debug(f'The line is ({y}) filled with blocks.'
                              f' It is going to be deleted.')
                 self.field.remove_line(y)
+        self.field.restructure()
