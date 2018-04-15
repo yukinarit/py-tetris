@@ -1,4 +1,4 @@
-from tetris.game import GameObject, nrange
+from tetris.game import GameObject
 
 
 def test_renderable():

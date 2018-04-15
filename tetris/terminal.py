@@ -72,6 +72,12 @@ class Vector2:
     def __sub__(self, other) -> 'Vector2':
         return Vector2(self.x - other.x, self.y - other.y)
 
+    def __eq__(self, other) -> bool:
+        return self.x == other.x and self.y == other.y
+
+    def __nq__(self, other) -> bool:
+        return not self == other
+
     def __repr__(self) -> str:
         return f'<Vector2(x={self.x},y={self.y})>'
 

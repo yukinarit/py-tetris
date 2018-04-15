@@ -504,7 +504,6 @@ class Game:
         for y in range(abs(dy)):
             steps.append(dict(dy=1*op(dy)))
         for step in steps:
-            logger.info(step)
             obj.move(**step)
             for o in self.field.children:
                 if check_collision(obj, o):
@@ -512,9 +511,17 @@ class Game:
                     collided(o, obj)
                     obj.move(**{k: -v for k, v in step.items()})
                     break
-        self.check_tetris()
+        self.check_game_over()
         self.field.update(obj)
         self.terminal.update(now(), self.player, *list(self.field.children))
+
+    def check_game_over(self) -> None:
+        cells = self.player.make_cells()
+        if cells:
+            origin = self.player.pos
+            current = Vector2(cells[0].x, cells[0].y)
+            if origin == current:
+                raise Exit()
 
     def add(self, obj: GameObject) -> None:
         """
