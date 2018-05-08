@@ -22,6 +22,31 @@ mapdir = pathlib.Path()
 
 logger = create_logger('game')
 
+map_data = """
+***      ***\n
+*          *\n
+*          *\n
+*          *\n
+*          *\n
+*          *\n
+*          *\n
+*          *\n
+*          *\n
+*          *\n
+*          *\n
+*          *\n
+*          *\n
+*          *\n
+*          *\n
+*          *\n
+*          *\n
+*          *\n
+*          *\n
+*          *\n
+*          *\n
+************\n
+"""
+
 
 def now() -> datetime.datetime:
     return datetime.datetime.now()
@@ -226,9 +251,18 @@ class Map(GameObject):
         return self.cells
 
     def load(self, mapfile: pathlib.Path) -> None:
-        logger.debug('Map load START')
         with mapfile.open() as f:
+            self.load_from(f)
+
+    def load_from(self, f=None, s: str=None) -> None:
+        logger.debug('Map load START')
+        if f:
             for line in f:
+                if not line:
+                    continue
+                self.data.append(line.strip())
+        if s:
+            for line in s.splitlines():
                 if not line:
                     continue
                 self.data.append(line.strip())
@@ -437,7 +471,7 @@ class Game:
         self.terminal: Terminal = Terminal(debug=True)
         self.objects: List[GameObject] = []
         self.map: Map = Map()
-        self.map.load(mapdir / 'map.txt')
+        self.map.load_from(s=map_data)
         self.field = Field(self.terminal.width, self.terminal.height)
         self.field.set_map(self.map)
         self.next_player: GameObject = None
