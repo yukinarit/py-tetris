@@ -18,7 +18,7 @@ DEFAULT_COLOR = Color.White
 
 basedir = pathlib.Path(__file__).parent
 
-mapdir = basedir
+mapdir = pathlib.Path()
 
 logger = create_logger('game')
 
