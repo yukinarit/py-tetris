@@ -2,17 +2,27 @@ TETRIS
 ======
 
 
-Run
+INSTALL
+-------
+
+* Get precompiled executable
+	* https://github.com/yukinarit/py-tetris/releases
+
+* Get development version
+    ```bash
+    pip install git+https://github.com/yukinarit/py-tetris.git --process-dependency-links
+    ```
+
+RUN
 ---
 
-```
+```bash
 python -m tetris
 ```
 
-
-How to build as binary
-----------------------
+DISTRIBUTE
+----------
 
 ```
-pyinstaller -F tetris/__main__.py -n tetris
+pyinstaller --clean -F tetris-cli -n tetris
 ```
