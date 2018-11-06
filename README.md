@@ -1,6 +1,8 @@
 TETRIS
 ======
 
+![](demo.gif)
+
 
 INSTALL
 -------
